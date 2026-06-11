@@ -9,6 +9,7 @@ load_dotenv()  # carga .env antes de importar config
 
 from app.config import settings
 from app.database import Base  # noqa: E402 — importar tras load_dotenv
+import app.models  # noqa: F401 — registra los modelos en Base.metadata
 
 config = context.config
 
