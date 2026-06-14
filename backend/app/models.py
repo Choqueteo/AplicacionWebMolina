@@ -3,6 +3,7 @@ from datetime import date, time
 from decimal import Decimal
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     Enum as SAEnum,
@@ -68,6 +69,7 @@ class Servicio(Base):
     nombre           : Mapped[str]     = mapped_column(String(100))
     duracion_minutos : Mapped[int]     = mapped_column(Integer)
     precio           : Mapped[Decimal] = mapped_column(Numeric(8, 2))
+    activo           : Mapped[bool]    = mapped_column(Boolean, default=True, nullable=False)
 
     citas: Mapped[list["Cita"]] = relationship(back_populates="servicio")
 
