@@ -30,8 +30,9 @@ class Rol(str, enum.Enum):
 
 
 class EstadoCita(str, enum.Enum):
-    activa    = "activa"
-    cancelada = "cancelada"
+    activa      = "activa"
+    cancelada   = "cancelada"
+    no_asistida = "no_asistida"
 
 
 # ---------------------------------------------------------------------------
@@ -44,14 +45,15 @@ class Usuario(Base):
         CheckConstraint("rol IN ('admin','cliente')", name="ck_usuario_rol"),
     )
 
-    id              : Mapped[int] = mapped_column(primary_key=True)
-    email           : Mapped[str] = mapped_column(String(255), unique=True)
-    password_hash   : Mapped[str] = mapped_column(String(255))
-    telefono        : Mapped[str] = mapped_column(String(20))
-    nombre_completo : Mapped[str] = mapped_column(String(100))
-    rol             : Mapped[Rol] = mapped_column(
+    id              : Mapped[int]  = mapped_column(primary_key=True)
+    email           : Mapped[str]  = mapped_column(String(255), unique=True)
+    password_hash   : Mapped[str]  = mapped_column(String(255))
+    telefono        : Mapped[str]  = mapped_column(String(20))
+    nombre_completo : Mapped[str]  = mapped_column(String(100))
+    rol             : Mapped[Rol]  = mapped_column(
                           SAEnum(Rol, native_enum=False, length=10)
                       )
+    bloqueado       : Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     citas: Mapped[list["Cita"]] = relationship(back_populates="cliente")
 
@@ -92,7 +94,7 @@ class Cita(Base):
     __tablename__ = "citas"
     __table_args__ = (
         CheckConstraint(
-            "estado IN ('activa','cancelada')", name="ck_cita_estado"
+            "estado IN ('activa','cancelada','no_asistida')", name="ck_cita_estado"
         ),
     )
 
@@ -104,7 +106,7 @@ class Cita(Base):
     hora_fin    : Mapped[time]       = mapped_column(Time)
     # hora_fin = hora_inicio + servicio.duracion_minutos; calculado en capa de servicio
     estado      : Mapped[EstadoCita] = mapped_column(
-                      SAEnum(EstadoCita, native_enum=False, length=10),
+                      SAEnum(EstadoCita, native_enum=False, length=15),
                       default=EstadoCita.activa,
                   )
 

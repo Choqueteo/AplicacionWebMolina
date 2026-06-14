@@ -84,6 +84,13 @@ def crear_cita(
             detail="Servicio no encontrado o inactivo",
         )
 
+    # 1b. Cliente no bloqueado
+    if usuario.bloqueado:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu cuenta está bloqueada. Contacta con el peluquero.",
+        )
+
     # 2. Fecha no pasada
     if datos.fecha < today_madrid:
         raise HTTPException(
@@ -209,6 +216,48 @@ def cancelar_cita(
     db.query(FranjaOcupada).filter(
         FranjaOcupada.cita_id == cita.id
     ).delete(synchronize_session="fetch")
+    db.commit()
+    db.refresh(cita)
+    return cita
+
+
+@router.patch("/citas/{cita_id}/no-asistida", response_model=CitaRead)
+def marcar_no_asistida(
+    cita_id: int,
+    admin: Usuario = Depends(solo_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Marca una cita pasada como 'no_asistida'. Solo admin.
+    La FranjaOcupada no se toca: la cita ya es pasada y las franjas no tienen efecto.
+    """
+    # 1. Existe
+    cita = db.get(Cita, cita_id)
+    if cita is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cita no encontrada")
+
+    # 2. Estado debe ser 'activa'
+    if cita.estado != EstadoCita.activa:
+        detail = (
+            "La cita ya está marcada como no asistida"
+            if cita.estado == EstadoCita.no_asistida
+            else "La cita está cancelada, no se puede marcar como no asistida"
+        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+
+    # 3. Cita debe ser pasada
+    now_madrid = datetime.now(_MADRID)
+    today_madrid = now_madrid.date()
+    es_pasada = cita.fecha < today_madrid or (
+        cita.fecha == today_madrid and cita.hora_inicio <= now_madrid.time()
+    )
+    if not es_pasada:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Solo se pueden marcar como no asistidas citas que ya hayan pasado",
+        )
+
+    cita.estado = EstadoCita.no_asistida
     db.commit()
     db.refresh(cita)
     return cita

@@ -30,6 +30,16 @@ class UsuarioRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UsuarioAdminRead(BaseModel):
+    id: int
+    email: str
+    telefono: str
+    nombre_completo: str
+    rol: str
+    bloqueado: bool
+    inasistencias: int  # calculado dinámicamente; no existe como columna en Usuario
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str

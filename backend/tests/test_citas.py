@@ -296,6 +296,78 @@ def test_cancelar_ya_cancelada_409(client, cliente_token, servicio_corte, horari
     assert r2.status_code == 409
 
 
+# ---------------------------------------------------------------------------
+# No asistida
+# ---------------------------------------------------------------------------
+
+def test_no_asistida_admin_cita_pasada(client, db_session, admin_token, cliente_token, servicio_corte):
+    """Admin marca una cita pasada activa como no_asistida → 200, estado='no_asistida'."""
+    usuario = db_session.query(Usuario).filter_by(email="cli@test.com").first()
+    cita_pasada = Cita(
+        cliente_id=usuario.id,
+        servicio_id=servicio_corte.id,
+        fecha=date.today() - timedelta(days=1),
+        hora_inicio=time(10, 0),
+        hora_fin=time(10, 30),
+        estado=EstadoCita.activa,
+    )
+    db_session.add(cita_pasada)
+    db_session.commit()
+    db_session.refresh(cita_pasada)
+
+    r = client.patch(f"/citas/{cita_pasada.id}/no-asistida", headers=_auth(admin_token))
+    assert r.status_code == 200
+    assert r.json()["estado"] == "no_asistida"
+
+
+def test_no_asistida_cita_futura_422(client, admin_token, servicio_corte, horario_dia, fecha_test, cliente_token):
+    """Admin intenta marcar como no_asistida una cita futura → 422."""
+    r = client.post("/citas", json=_payload(servicio_corte.id, fecha_test), headers=_auth(cliente_token))
+    assert r.status_code == 201
+    cita_id = r.json()["id"]
+
+    r = client.patch(f"/citas/{cita_id}/no-asistida", headers=_auth(admin_token))
+    assert r.status_code == 422
+
+
+def test_no_asistida_cita_cancelada_409(client, db_session, admin_token, cliente_token, servicio_corte):
+    """Intentar marcar como no_asistida una cita cancelada → 409."""
+    usuario = db_session.query(Usuario).filter_by(email="cli@test.com").first()
+    cita = Cita(
+        cliente_id=usuario.id,
+        servicio_id=servicio_corte.id,
+        fecha=date.today() - timedelta(days=1),
+        hora_inicio=time(11, 0),
+        hora_fin=time(11, 30),
+        estado=EstadoCita.cancelada,
+    )
+    db_session.add(cita)
+    db_session.commit()
+    db_session.refresh(cita)
+
+    r = client.patch(f"/citas/{cita.id}/no-asistida", headers=_auth(admin_token))
+    assert r.status_code == 409
+
+
+def test_no_asistida_cliente_403(client, db_session, cliente_token, servicio_corte):
+    """Un cliente intenta marcar una cita como no_asistida → 403."""
+    usuario = db_session.query(Usuario).filter_by(email="cli@test.com").first()
+    cita = Cita(
+        cliente_id=usuario.id,
+        servicio_id=servicio_corte.id,
+        fecha=date.today() - timedelta(days=1),
+        hora_inicio=time(12, 0),
+        hora_fin=time(12, 30),
+        estado=EstadoCita.activa,
+    )
+    db_session.add(cita)
+    db_session.commit()
+    db_session.refresh(cita)
+
+    r = client.patch(f"/citas/{cita.id}/no-asistida", headers=_auth(cliente_token))
+    assert r.status_code == 403
+
+
 def test_cancelar_libera_franja_para_nueva_reserva(client, db_session, servicio_corte, horario_dia, fecha_test):
     """Tras cancelar, el slot queda libre y otro cliente puede reservarlo → 201."""
     c1 = Usuario(email="c1@test.com", password_hash=hash_password("x"),
