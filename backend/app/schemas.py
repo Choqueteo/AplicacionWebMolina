@@ -1,9 +1,15 @@
+import re
 from datetime import date, time
 from decimal import Decimal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 from app.models import EstadoCita
+
+# Letras latinas con tildes/acentos, ñ y caracteres europeos comunes, más espacio, guión y apóstrofo
+_NOMBRE_RE = re.compile(
+    r"^[a-zA-ZáéíóúàèìòùäëïöüÿâêîôûãõñçÁÉÍÓÚÀÈÌÒÙÄËÏÖÜÂÊÎÔÛÃÕÑÇ '\-]+$"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -13,11 +19,46 @@ from app.models import EstadoCita
 class UsuarioCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=100)
-    telefono: str = Field(pattern=r"^\+?[0-9]{9,15}$")
+    telefono: str  # validado y normalizado por validar_telefono
     nombre_completo: str = Field(min_length=1, max_length=100)
     # Sin campo `rol`: el endpoint lo fuerza siempre a 'cliente'
 
     model_config = {"extra": "forbid"}  # 422 ante cualquier campo extra (anti mass-assignment)
+
+    @field_validator("nombre_completo", mode="before")
+    @classmethod
+    def validar_nombre(cls, v: str) -> str:
+        # Normalizar: recortar y colapsar espacios múltiples
+        v = " ".join(str(v).split())
+        if not v:
+            raise ValueError("El nombre completo no puede estar vacío")
+        if not _NOMBRE_RE.match(v):
+            raise ValueError(
+                "El nombre solo puede contener letras, espacios, guiones y apóstrofos"
+            )
+        palabras = v.split()
+        if len(palabras) < 2:
+            raise ValueError("Introduce al menos nombre y apellido (mínimo dos palabras)")
+        for palabra in palabras:
+            letras = sum(1 for c in palabra if c.isalpha())  # isalpha() cubre Unicode
+            if letras < 2:
+                raise ValueError("Cada parte del nombre debe tener al menos 2 letras")
+        return v  # versión normalizada
+
+    @field_validator("telefono", mode="before")
+    @classmethod
+    def validar_telefono(cls, v: str) -> str:
+        # Normalizar: eliminar separadores habituales (espacios, guiones, puntos, paréntesis)
+        cleaned = re.sub(r"[\s\-\.\(\)]", "", str(v))
+        # Prefijo España (+34 / 0034) opcional; 9 dígitos comenzando por 6/7/8/9
+        # Formato canónico guardado: 9 dígitos sin prefijo (ej. "612345678")
+        m = re.match(r"^(?:\+34|0034)?([6-9]\d{8})$", cleaned)
+        if not m:
+            raise ValueError(
+                "Teléfono inválido. Introduce un número español de 9 dígitos "
+                "(p. ej. 612345678 o +34 612 345 678)"
+            )
+        return m.group(1)  # canónico: 9 dígitos sin prefijo
 
 
 class UsuarioRead(BaseModel):
