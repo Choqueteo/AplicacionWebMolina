@@ -1,0 +1,67 @@
+/* Tokens de color y diseño — se redefinen por tema via data-theme en <html> */
+
+:root,
+[data-theme="dark"] {
+  /* ── Escala tipográfica (no varía por tema) ────────────────────────────── */
+  --text-xs:     0.8125rem;   /* 13px  — mínimo absoluto: badges, cabeceras de tabla */
+  --text-sm:     0.875rem;    /* 14px  — labels, ayuda, errores, meta info           */
+  --text-base:   1rem;        /* 16px  — inputs, cuerpo principal                    */
+  --text-lg:     1.125rem;    /* 18px  — títulos de sección                          */
+  --text-xl:     1.75rem;     /* 28px  — títulos de página                           */
+
+  --leading-snug:   1.35;
+  --leading-normal: 1.5;
+
+  /* ── Animaciones (no varían por tema) ──────────────────────────────────── */
+  --transition-fast:  150ms;
+  --transition-base:  220ms;
+  --ease-out:         cubic-bezier(0.4, 0, 0.2, 1);
+
+  --c-bg:          #0B0B0C;
+  --c-surface:     #161618;
+  --c-text:        #F2ECDD;
+  --c-text-sec:    #9A958A;
+  --c-gold:        #D4B35A;
+  --c-gold-bright: #EBC76C;
+  --c-border:      rgba(255, 255, 255, 0.1);
+  --c-input-bg:    rgba(255, 255, 255, 0.04);
+
+  --c-error:       #A32D2D;
+  --c-error-bg:    #FCEBEB;
+  --c-error-text:  #A32D2D;
+  --c-success:     #3B6D11;
+  --c-success-bg:  #EAF3DE;
+  --c-success-text:#3B6D11;
+  --c-warn:        #854F0B;
+  --c-warn-bg:     #FAEEDA;
+
+  --radius-card:   12px;
+  --radius-input:  8px;
+  --radius-btn:    8px;
+  --shadow-card:   0 8px 40px rgba(0, 0, 0, 0.55);
+}
+
+[data-theme="light"] {
+  --c-bg:          #FBF8F1;
+  --c-surface:     #FFFFFF;
+  --c-text:        #1A1814;
+  --c-text-sec:    #6E665C;
+  --c-gold:        #9C7A2A;
+  --c-gold-bright: #B8923A;
+  --c-border:      rgba(0, 0, 0, 0.12);
+  --c-input-bg:    rgba(0, 0, 0, 0.02);
+
+  --c-error:       #A32D2D;
+  --c-error-bg:    #FCEBEB;
+  --c-error-text:  #A32D2D;
+  --c-success:     #3B6D11;
+  --c-success-bg:  #EAF3DE;
+  --c-success-text:#3B6D11;
+  --c-warn:        #854F0B;
+  --c-warn-bg:     #FAEEDA;
+
+  --radius-card:   12px;
+  --radius-input:  8px;
+  --radius-btn:    8px;
+  --shadow-card:   0 4px 24px rgba(0, 0, 0, 0.10);
+}

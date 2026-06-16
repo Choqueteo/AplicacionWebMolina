@@ -1,0 +1,95 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--c-text-sec);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.inputWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input {
+  width: 100%;
+  padding: 0.7rem 0.875rem;
+  background: var(--c-input-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-input);
+  color: var(--c-text);
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color var(--transition-base) var(--ease-out),
+              box-shadow  var(--transition-base) var(--ease-out);
+  -webkit-appearance: none;
+}
+
+.input::placeholder {
+  color: var(--c-text-sec);
+  opacity: 0.6;
+}
+
+.input:focus {
+  border-color: var(--c-gold);
+  box-shadow: 0 0 0 3px rgba(212, 179, 90, 0.18);
+}
+
+.hasError .input {
+  border-color: var(--c-error);
+}
+
+.hasError .input:focus {
+  box-shadow: 0 0 0 3px rgba(163, 45, 45, 0.15);
+}
+
+.suffix {
+  position: absolute;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.suffix button {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: var(--c-text-sec);
+  font-size: 1rem;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color var(--transition-fast) var(--ease-out);
+}
+
+.suffix button:hover {
+  color: var(--c-text);
+}
+
+.ayudaMsg {
+  font-size: var(--text-sm);
+  color: var(--c-text-sec);
+  line-height: var(--leading-normal);
+}
+
+.errorMsg {
+  font-size: var(--text-sm);
+  color: var(--c-error-text);
+}
+
+/* Reservar espacio para el suffix dentro del input */
+.inputWrap:has(.suffix) .input {
+  padding-right: 2.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input { transition: none; }
+}

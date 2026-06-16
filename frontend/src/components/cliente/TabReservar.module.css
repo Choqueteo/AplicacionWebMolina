@@ -1,0 +1,180 @@
+.flujo {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* ── Secciones progresivas ────────────────────────────────────────────────── */
+.seccion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.seccionTitulo {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--c-text);
+  letter-spacing: 0.01em;
+}
+
+/* ── Tarjetas de servicio ─────────────────────────────────────────────────── */
+.serviciosGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.servicioCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transition-fast) var(--ease-out);
+}
+
+.servicioCard:hover {
+  border-color: var(--c-gold);
+}
+
+.servicioSeleccionado {
+  border-color: var(--c-gold);
+  box-shadow: 0 0 0 2px rgba(212, 179, 90, 0.2);
+}
+
+.servicioNombre {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--c-text);
+}
+
+.servicioMeta {
+  font-size: var(--text-sm);
+  color: var(--c-text-sec);
+}
+
+/* ── Rejilla de horas ─────────────────────────────────────────────────────── */
+.horasGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 0.5rem;
+}
+
+.horaBtn {
+  padding: 0.6rem 0.25rem;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-input);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  color: var(--c-text);
+  cursor: pointer;
+  transition: border-color var(--transition-fast) var(--ease-out),
+              background   var(--transition-fast) var(--ease-out);
+}
+
+.horaBtn:hover {
+  border-color: var(--c-gold);
+}
+
+.horaSeleccionada {
+  background: var(--c-gold);
+  border-color: var(--c-gold);
+  color: #1A1814;
+  font-weight: 600;
+}
+
+/* ── Resumen ──────────────────────────────────────────────────────────────── */
+.resumen {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-input);
+  overflow: hidden;
+}
+
+.resumenFila {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.resumenFila:last-child {
+  border-bottom: none;
+}
+
+.resumenLabel {
+  color: var(--c-text-sec);
+  flex-shrink: 0;
+}
+
+/* ── Mensajes ─────────────────────────────────────────────────────────────── */
+.errorMsg {
+  background: var(--c-error-bg);
+  color: var(--c-error-text);
+  border-left: 3px solid var(--c-error);
+  border-radius: var(--radius-input);
+  padding: 0.65rem 0.875rem;
+  font-size: 0.9rem;
+}
+
+.vacio {
+  color: var(--c-text-sec);
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+}
+
+.centrado {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+/* ── Éxito ────────────────────────────────────────────────────────────────── */
+.exito {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.exitoIcono {
+  width: 3rem;
+  height: 3rem;
+  line-height: 3rem;
+  border-radius: 50%;
+  background: var(--c-success-bg);
+  color: var(--c-success-text);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.exito h2 {
+  font-size: 1.4rem;
+  color: var(--c-text);
+}
+
+.exitoDetalle {
+  font-size: 0.9rem;
+  color: var(--c-text-sec);
+}
+
+.exitoAcciones {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}

@@ -1,0 +1,133 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-bg);
+  color: var(--c-text);
+}
+
+/* ── Cabecera ─────────────────────────────────────────────────────────────── */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.logo {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.nombreUsuario {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--c-text-sec);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.headerAcciones {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.btnLogout {
+  background: none;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-btn);
+  padding: 0.3rem 0.75rem;
+  font-size: var(--text-sm);
+  color: var(--c-text-sec);
+  cursor: pointer;
+  transition: color        var(--transition-fast) var(--ease-out),
+              border-color var(--transition-fast) var(--ease-out);
+}
+
+.btnLogout:hover {
+  color: var(--c-gold);
+  border-color: var(--c-gold);
+}
+
+/* ── Pestañas ─────────────────────────────────────────────────────────────── */
+.tabs {
+  position: sticky;
+  top: 53px; /* altura de la cabecera */
+  z-index: 9;
+  display: flex;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.tabs::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 50%;
+  height: 2px;
+  background: var(--c-gold);
+  transition: transform var(--transition-base) var(--ease-out);
+}
+
+.tabs[data-tab="mis-citas"]::after {
+  transform: translateX(100%);
+}
+
+.tab {
+  flex: 1;
+  padding: 0.75rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--c-text-sec);
+  cursor: pointer;
+  transition: color var(--transition-fast) var(--ease-out);
+}
+
+.tab:hover {
+  color: var(--c-text);
+}
+
+.tabActiva {
+  color: var(--c-gold);
+  /* el indicador lo gestiona tabs::after con transform */
+}
+
+/* ── Contenido ───────────────────────────────────────────────────────────── */
+.tabContent {
+  animation: fadeSlideIn var(--transition-base) var(--ease-out) both;
+}
+
+.contenido {
+  flex: 1;
+  padding: 1.25rem 1rem;
+  max-width: 600px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.cargandoWrap {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 0;
+}
+
+.errorCarga {
+  text-align: center;
+  color: var(--c-error-text);
+  padding: 2rem 0;
+}

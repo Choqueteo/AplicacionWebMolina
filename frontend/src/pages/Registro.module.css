@@ -1,0 +1,44 @@
+.titulo {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--c-text);
+  letter-spacing: 0.01em;
+}
+
+.contexto {
+  font-size: 0.9rem;
+  color: var(--c-text-sec);
+  line-height: 1.5;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.errorMsg {
+  background: var(--c-error-bg);
+  color: var(--c-error-text);
+  border-radius: var(--radius-input);
+  padding: 0.65rem 0.875rem;
+  font-size: 0.9rem;
+  border-left: 3px solid var(--c-error);
+}
+
+.enlace {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--c-text-sec);
+}
+
+.enlace a {
+  color: var(--c-gold);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+
+.enlace a:hover {
+  color: var(--c-gold-bright);
+}

@@ -6,7 +6,14 @@ from app.database import get_db
 from app.dependencies import get_usuario_actual
 from app.models import Rol, Usuario
 from app.rate_limit import limiter
-from app.schemas import LoginRequest, Token, UsuarioCreate, UsuarioRead
+from app.schemas import (
+    ActualizarPerfilIn,
+    CambiarPasswordIn,
+    LoginRequest,
+    Token,
+    UsuarioCreate,
+    UsuarioRead,
+)
 from app.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(tags=["autenticación"])
@@ -57,3 +64,36 @@ def login(request: Request, datos: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/usuarios/me", response_model=UsuarioRead)
 def me(usuario: Usuario = Depends(get_usuario_actual)):
     return usuario
+
+
+@router.patch("/usuarios/me", response_model=UsuarioRead)
+def actualizar_perfil(
+    datos: ActualizarPerfilIn,
+    usuario: Usuario = Depends(get_usuario_actual),
+    db: Session = Depends(get_db),
+):
+    if datos.nombre_completo is not None:
+        usuario.nombre_completo = datos.nombre_completo
+    if datos.telefono is not None:
+        usuario.telefono = datos.telefono
+    db.commit()
+    db.refresh(usuario)
+    return usuario
+
+
+@router.patch("/usuarios/me/password", status_code=200)
+@limiter.limit("5/minute")
+def cambiar_password(
+    request: Request,
+    datos: CambiarPasswordIn,
+    usuario: Usuario = Depends(get_usuario_actual),
+    db: Session = Depends(get_db),
+):
+    if not verify_password(datos.password_actual, usuario.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña actual no es correcta",
+        )
+    usuario.password_hash = hash_password(datos.password_nueva)
+    db.commit()
+    return {"detail": "Contraseña actualizada correctamente"}

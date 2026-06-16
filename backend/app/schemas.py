@@ -12,6 +12,34 @@ _NOMBRE_RE = re.compile(
 )
 
 
+def _validar_nombre(v: str) -> str:
+    """Normaliza y valida nombre_completo. Mínimo 2 palabras con ≥2 letras cada una."""
+    v = " ".join(str(v).split())
+    if not v:
+        raise ValueError("El nombre completo no puede estar vacío")
+    if not _NOMBRE_RE.match(v):
+        raise ValueError("El nombre solo puede contener letras, espacios, guiones y apóstrofos")
+    palabras = v.split()
+    if len(palabras) < 2:
+        raise ValueError("Introduce al menos nombre y apellido (mínimo dos palabras)")
+    for palabra in palabras:
+        if sum(1 for c in palabra if c.isalpha()) < 2:
+            raise ValueError("Cada parte del nombre debe tener al menos 2 letras")
+    return v
+
+
+def _validar_telefono(v: str) -> str:
+    """Normaliza y valida teléfono español. Devuelve 9 dígitos sin prefijo."""
+    cleaned = re.sub(r"[\s\-\.\(\)]", "", str(v))
+    m = re.match(r"^(?:\+34|0034)?([6-9]\d{8})$", cleaned)
+    if not m:
+        raise ValueError(
+            "Teléfono inválido. Introduce un número español de 9 dígitos "
+            "(p. ej. 612345678 o +34 612 345 678)"
+        )
+    return m.group(1)
+
+
 # ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
@@ -19,7 +47,7 @@ _NOMBRE_RE = re.compile(
 class UsuarioCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=100)
-    telefono: str  # validado y normalizado por validar_telefono
+    telefono: str  # validado y normalizado por _validar_telefono
     nombre_completo: str = Field(min_length=1, max_length=100)
     # Sin campo `rol`: el endpoint lo fuerza siempre a 'cliente'
 
@@ -28,37 +56,12 @@ class UsuarioCreate(BaseModel):
     @field_validator("nombre_completo", mode="before")
     @classmethod
     def validar_nombre(cls, v: str) -> str:
-        # Normalizar: recortar y colapsar espacios múltiples
-        v = " ".join(str(v).split())
-        if not v:
-            raise ValueError("El nombre completo no puede estar vacío")
-        if not _NOMBRE_RE.match(v):
-            raise ValueError(
-                "El nombre solo puede contener letras, espacios, guiones y apóstrofos"
-            )
-        palabras = v.split()
-        if len(palabras) < 2:
-            raise ValueError("Introduce al menos nombre y apellido (mínimo dos palabras)")
-        for palabra in palabras:
-            letras = sum(1 for c in palabra if c.isalpha())  # isalpha() cubre Unicode
-            if letras < 2:
-                raise ValueError("Cada parte del nombre debe tener al menos 2 letras")
-        return v  # versión normalizada
+        return _validar_nombre(v)
 
     @field_validator("telefono", mode="before")
     @classmethod
     def validar_telefono(cls, v: str) -> str:
-        # Normalizar: eliminar separadores habituales (espacios, guiones, puntos, paréntesis)
-        cleaned = re.sub(r"[\s\-\.\(\)]", "", str(v))
-        # Prefijo España (+34 / 0034) opcional; 9 dígitos comenzando por 6/7/8/9
-        # Formato canónico guardado: 9 dígitos sin prefijo (ej. "612345678")
-        m = re.match(r"^(?:\+34|0034)?([6-9]\d{8})$", cleaned)
-        if not m:
-            raise ValueError(
-                "Teléfono inválido. Introduce un número español de 9 dígitos "
-                "(p. ej. 612345678 o +34 612 345 678)"
-            )
-        return m.group(1)  # canónico: 9 dígitos sin prefijo
+        return _validar_telefono(v)
 
 
 class UsuarioRead(BaseModel):
@@ -69,6 +72,36 @@ class UsuarioRead(BaseModel):
     rol: str
 
     model_config = {"from_attributes": True}
+
+
+class ActualizarPerfilIn(BaseModel):
+    nombre_completo: str | None = Field(default=None, min_length=1, max_length=100)
+    telefono: str | None = None
+
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def al_menos_un_campo(self) -> "ActualizarPerfilIn":
+        if self.nombre_completo is None and self.telefono is None:
+            raise ValueError("Indica al menos nombre_completo o telefono")
+        return self
+
+    @field_validator("nombre_completo", mode="before")
+    @classmethod
+    def validar_nombre(cls, v: str | None) -> str | None:
+        return None if v is None else _validar_nombre(v)
+
+    @field_validator("telefono", mode="before")
+    @classmethod
+    def validar_telefono(cls, v: str | None) -> str | None:
+        return None if v is None else _validar_telefono(v)
+
+
+class CambiarPasswordIn(BaseModel):
+    password_actual: str
+    password_nueva: str = Field(min_length=8, max_length=100)
+
+    model_config = {"extra": "forbid"}
 
 
 class UsuarioAdminRead(BaseModel):

@@ -1,6 +1,7 @@
 """
-Crea las cuentas de administrador en la base de datos.
-Idempotente: si el email ya existe, lo omite sin error.
+Crea o actualiza las cuentas de administrador en la base de datos.
+Idempotente: si el admin ya existe actualiza su contraseña, nombre y teléfono;
+nunca crea duplicados ni más de los 2 admins configurados.
 
 Uso:
     cd backend
@@ -29,23 +30,27 @@ def seed() -> None:
     db = SessionLocal()
     try:
         for email_var, pwd_var, nombre_var, tel_var in _ADMINS:
-            email = os.environ[email_var]
+            email    = os.environ[email_var]
             password = os.environ[pwd_var]
-            nombre = os.environ.get(nombre_var, "Admin")
+            nombre   = os.environ.get(nombre_var, "Admin")
             telefono = os.environ.get(tel_var, "000000000")
 
-            if db.query(Usuario).filter_by(email=email).first():
-                print(f"[seed] {email} ya existe, omitido.")
-                continue
-
-            db.add(Usuario(
-                email=email,
-                password_hash=hash_password(password),
-                telefono=telefono,
-                nombre_completo=nombre,
-                rol=Rol.admin,
-            ))
-            print(f"[seed] {email} creado como admin.")
+            existente = db.query(Usuario).filter_by(email=email).first()
+            if existente:
+                existente.password_hash  = hash_password(password)
+                existente.nombre_completo = nombre
+                existente.telefono        = telefono
+                existente.rol             = Rol.admin
+                print(f"[seed] {email} actualizado.")
+            else:
+                db.add(Usuario(
+                    email=email,
+                    password_hash=hash_password(password),
+                    telefono=telefono,
+                    nombre_completo=nombre,
+                    rol=Rol.admin,
+                ))
+                print(f"[seed] {email} creado como admin.")
 
         db.commit()
     finally:

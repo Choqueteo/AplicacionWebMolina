@@ -81,6 +81,14 @@ Corte = 30 min = 1 franja. Tinte/mechas = 60 min = 2 franjas (siempre, sin repos
 
 ---
 
+## Notificaciones al peluquero (Telegram)
+
+El peluquero recibe un aviso por **Telegram** cuando un cliente **reserva** (`POST /citas` con éxito) o **cancela** una cita (`PATCH /citas/{id}/cancelar`, solo si cancela el cliente; no si cancela el propio admin).
+- El envío ocurre **tras confirmar la transacción** en la BD y en **segundo plano** (`BackgroundTasks`). Si falla o tarda, la operación se completa igual: el aviso nunca bloquea ni ralentiza la reserva/cancelación; los fallos se capturan y registran (sin volcar datos personales ni el token en los logs).
+- Mensaje **conciso y suficiente**: nombre del cliente, teléfono, servicio, fecha y hora, y la acción. Minimización de datos (RGPD).
+- `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` (del peluquero) en variables de entorno, nunca en el código. Si faltan, la app funciona igual (no envía; deja un aviso en el log).
+- Es una notificación de salida hacia una sola persona, no un chat bidireccional.
+
 ## Estados de cita y su VISUALIZACIÓN (derivada — no hay paso de "confirmar")
 
 El peluquero solo marca inasistencias; nunca confirma citas. La etiqueta mostrada se DERIVA de `estado` + fecha:
@@ -98,6 +106,20 @@ NO usar nunca la etiqueta "Confirmada".
 - Recordatorios WhatsApp/SMS. V2.
 - Verificación del teléfono por SMS (OTP). V2 si hay abuso.
 - Tiempo real / actualización en vivo.
+
+---
+
+## Notificaciones al peluquero (Telegram)
+
+- Bot de Telegram → chat personal del peluquero. Solo salida (no responder al bot).
+- Módulo: `app/notificaciones/telegram.py`, función `enviar_aviso_peluquero(mensaje: str)`.
+- Variables de entorno: `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`. Si alguna falta → warning en log y no envía (no rompe nada). Nunca en el código.
+- Disparadores con `BackgroundTasks` (después del commit, sin bloquear la respuesta al cliente):
+  - `POST /citas` éxito → "Nueva reserva" con nombre, teléfono, servicio, fecha y hora.
+  - `PATCH /citas/{id}/cancelar` éxito **y quien cancela es el cliente** → "Cita cancelada por el cliente". Si cancela un admin → no se envía (ya lo sabe).
+- Cualquier excepción en el envío se captura con `try/except Exception` y se registra como warning sin datos personales ni el token. La operación principal nunca falla por esto.
+- `httpx.post` síncrono, timeout 5 s. Starlette lo ejecuta en thread pool (no bloquea el event loop).
+- Tests: mockear `enviar_aviso_peluquero` en `app.routers.citas` para tests de endpoint; mockear `httpx.post` dentro del módulo para tests unitarios de la función.
 
 ---
 

@@ -1,13 +1,14 @@
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_usuario_actual, solo_admin
 from app.models import Cita, EstadoCita, FranjaOcupada, HorarioPeluquero, Rol, Servicio, Usuario
+from app.notificaciones.telegram import enviar_aviso_peluquero
 from app.rate_limit import get_real_ip, limiter
 from app.schemas import CitaCreate, CitaRead
 from app.security import decode_access_token
@@ -65,6 +66,7 @@ def mis_citas(
 @limiter.limit("50/day", key_func=_key_usuario)
 def crear_cita(
     request: Request,  # requerido por slowapi
+    background_tasks: BackgroundTasks,
     datos: CitaCreate,
     usuario: Usuario = Depends(get_usuario_actual),
     db: Session = Depends(get_db),
@@ -147,6 +149,16 @@ def crear_cita(
 
         db.commit()
         db.refresh(cita)
+
+        fecha_str = cita.fecha.strftime("%d/%m/%Y")
+        hora_str  = cita.hora_inicio.strftime("%H:%M")
+        mensaje = (
+            f"Nueva reserva\n"
+            f"Cliente: {usuario.nombre_completo} | {usuario.telefono}\n"
+            f"Servicio: {servicio.nombre}\n"
+            f"Fecha: {fecha_str} a las {hora_str}"
+        )
+        background_tasks.add_task(enviar_aviso_peluquero, mensaje)
         return cita
 
     except IntegrityError:
@@ -178,6 +190,7 @@ def obtener_cita(
 @router.patch("/citas/{cita_id}/cancelar", response_model=CitaRead)
 def cancelar_cita(
     cita_id: int,
+    background_tasks: BackgroundTasks,
     usuario: Usuario = Depends(get_usuario_actual),
     db: Session = Depends(get_db),
 ):
@@ -218,6 +231,20 @@ def cancelar_cita(
     ).delete(synchronize_session="fetch")
     db.commit()
     db.refresh(cita)
+
+    if usuario.rol != Rol.admin:
+        servicio = db.get(Servicio, cita.servicio_id)
+        nombre_servicio = servicio.nombre if servicio else f"Servicio #{cita.servicio_id}"
+        fecha_str = cita.fecha.strftime("%d/%m/%Y")
+        hora_str  = cita.hora_inicio.strftime("%H:%M")
+        mensaje = (
+            f"Cita cancelada por el cliente\n"
+            f"Cliente: {usuario.nombre_completo} | {usuario.telefono}\n"
+            f"Servicio: {nombre_servicio}\n"
+            f"Fecha: {fecha_str} a las {hora_str}"
+        )
+        background_tasks.add_task(enviar_aviso_peluquero, mensaje)
+
     return cita
 
 

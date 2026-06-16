@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     # En .env usa formato JSON: ALLOWED_ORIGINS=["http://localhost:5173"]
     allowed_origins: list[str] = ["http://localhost:5173"]
     environment: str = "development"
+    telegram_bot_token: str | None = None
+    telegram_chat_id: str | None = None
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
