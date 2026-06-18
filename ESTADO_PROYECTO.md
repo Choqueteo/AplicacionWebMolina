@@ -147,9 +147,53 @@ Dashboard del admin (panel del peluquero), mobile-first con barra de navegación
 - `GET /disponibilidad` itera sobre **todos** los tramos del día (`.all()` + loop) y acumula los huecos disponibles de cada bloque.
 - 3 tests nuevos en `test_horario.py`: tramos no solapados OK, solapamiento exacto rechazado, solapamiento parcial rechazado, disponibilidad con dos bloques.
 
-## Pendiente — Despliegue
+## Despliegue en Render — CONFIGURADO (pendiente de ejecutar)
 
-- Render: backend (Web Service de pago), PostgreSQL gestionada con backups, frontend (static site), variables de entorno y seed de admins en producción (con `VITE_API_URL` absoluta, contraseñas fuertes y las variables de **Telegram**).
+Archivo `render.yaml` (Blueprint) en la raíz del repo. Define las 3 piezas: backend, frontend, PostgreSQL.
+
+### Arquitectura
+- **Backend** (`rm-backend`): Web Service Python, región Frankfurt, plan Starter.
+  - Comando de arranque: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+  - Pre-deploy: `alembic upgrade head && python seed.py`
+  - Dominio: `api.rmolinastyle.com`
+- **Frontend** (`rm-frontend`): Static Site, región Frankfurt.
+  - Build: `npm install && npm run build` → publica `dist/`
+  - Rewrite SPA: `/* → /index.html` (evita 404 al recargar en rutas como `/admin`)
+  - Dominio: `rmolinastyle.com` + `www.rmolinastyle.com`
+- **PostgreSQL** (`rm-postgres`): plan `basic-256mb`, Frankfurt, `ipAllowList: []` (solo conexiones internas).
+
+### Variables a configurar manualmente en el panel de Render (secretas, `sync: false`)
+```
+ADMIN1_EMAIL       → admin@rmolinastyle.com
+ADMIN1_PASSWORD    → contraseña fuerte (solo se usa al crear el admin; deploys posteriores no la tocan)
+ADMIN1_NOMBRE      → nombre del desarrollador
+ADMIN1_TELEFONO    → teléfono
+ADMIN2_EMAIL       → peluquero@rmolinastyle.com
+ADMIN2_PASSWORD    → contraseña fuerte
+ADMIN2_NOMBRE      → nombre del peluquero
+ADMIN2_TELEFONO    → teléfono
+TELEGRAM_BOT_TOKEN → token del bot de Telegram
+TELEGRAM_CHAT_ID   → chat id del peluquero
+```
+`SECRET_KEY` la genera Render automáticamente (`generateValue: true`). `DATABASE_URL` la inyecta Render desde la BD gestionada.
+
+### Normalización de DATABASE_URL
+Render inyecta `postgres://`, pero psycopg3 necesita `postgresql+psycopg://`. `config.py` tiene un `field_validator` que normaliza el esquema automáticamente al arrancar (también aplica a Alembic).
+
+### seed.py — comportamiento CREATE-IF-MISSING
+- Si el admin **no existe** → lo crea con todos los datos (incluida la contraseña).
+- Si el admin **ya existe** → solo garantiza `rol=admin` y `bloqueado=False`. **Nunca toca** `password_hash`, `nombre_completo` ni `telefono` (campos editables desde "Mi cuenta").
+
+### Redirección www → apex
+No se puede declarar en `render.yaml` (las rutas del static site son path-based). Configurar **después del primer deploy** en el panel de Render (Custom Domains → Redirect) o con una regla de Cloudflare si el DNS está ahí.
+
+### Checklist del primer deploy
+1. Crear un "Blueprint" en Render apuntando al repositorio → usa `render.yaml`.
+2. Introducir las variables secretas en el panel (ver lista arriba).
+3. Esperar a que el pre-deploy (`alembic upgrade head && python seed.py`) complete.
+4. Verificar: `GET https://api.rmolinastyle.com/health → {"status":"ok"}`.
+5. Verificar: `https://rmolinastyle.com` carga y `/admin` no da 404 al recargar.
+6. Configurar DNS del dominio apuntando a Render + redirección www → apex.
 
 ---
 

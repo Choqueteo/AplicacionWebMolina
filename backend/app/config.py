@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -14,6 +15,17 @@ class Settings(BaseSettings):
     retencion_meses: int = 24
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalizar_database_url(cls, v: str) -> str:
+        # Render inyecta postgres://, pero psycopg3 necesita postgresql+psycopg://
+        if isinstance(v, str):
+            if v.startswith("postgres://"):
+                v = v.replace("postgres://", "postgresql+psycopg://", 1)
+            elif v.startswith("postgresql://") and "+psycopg" not in v:
+                v = v.replace("postgresql://", "postgresql+psycopg://", 1)
+        return v
 
 
 settings = Settings()

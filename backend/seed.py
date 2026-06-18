@@ -1,7 +1,10 @@
 """
-Crea o actualiza las cuentas de administrador en la base de datos.
-Idempotente: si el admin ya existe actualiza su contraseña, nombre y teléfono;
-nunca crea duplicados ni más de los 2 admins configurados.
+Garantiza que las cuentas de administrador existen en la base de datos.
+Idempotente y CREATE-IF-MISSING:
+  - Si el admin NO existe: lo crea con todos sus datos.
+  - Si el admin YA existe: solo garantiza rol=admin y bloqueado=False.
+    NO toca password_hash, nombre_completo ni telefono (campos editables
+    desde "Mi cuenta"; se respetan los cambios que el usuario haya hecho).
 
 Uso:
     cd backend
@@ -31,23 +34,22 @@ def seed() -> None:
     try:
         for email_var, pwd_var, nombre_var, tel_var in _ADMINS:
             email    = os.environ[email_var]
-            password = os.environ[pwd_var]
+            password = os.environ[pwd_var]   # obligatorio aunque solo se usa al crear
             nombre   = os.environ.get(nombre_var, "Admin")
             telefono = os.environ.get(tel_var, "000000000")
 
             existente = db.query(Usuario).filter_by(email=email).first()
             if existente:
-                existente.password_hash  = hash_password(password)
-                existente.nombre_completo = nombre
-                existente.telefono        = telefono
-                existente.rol             = Rol.admin
-                print(f"[seed] {email} actualizado.")
+                # Solo asegura los invariantes de seguridad; nunca pisa el perfil
+                existente.rol       = Rol.admin
+                existente.bloqueado = False
+                print(f"[seed] {email} ya existe — rol verificado, perfil sin cambios.")
             else:
                 db.add(Usuario(
                     email=email,
                     password_hash=hash_password(password),
-                    telefono=telefono,
                     nombre_completo=nombre,
+                    telefono=telefono,
                     rol=Rol.admin,
                 ))
                 print(f"[seed] {email} creado como admin.")
