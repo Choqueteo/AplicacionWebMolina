@@ -79,10 +79,15 @@ def consultar_disponibilidad(
     if fecha < today_madrid:
         return DisponibilidadRead(fecha=fecha, servicio_id=servicio_id, horas_disponibles=[])
 
-    # Buscar horario del día de la semana
+    # Buscar todos los tramos del día de la semana
     dia_semana = fecha.weekday()
-    horario = db.query(HorarioPeluquero).filter_by(dia_semana=dia_semana).first()
-    if not horario:
+    tramos = (
+        db.query(HorarioPeluquero)
+        .filter_by(dia_semana=dia_semana)
+        .order_by(HorarioPeluquero.hora_apertura)
+        .all()
+    )
+    if not tramos:
         return DisponibilidadRead(fecha=fecha, servicio_id=servicio_id, horas_disponibles=[])
 
     # Franjas ya ocupadas ese día (una sola consulta)
@@ -91,19 +96,19 @@ def consultar_disponibilidad(
         for row in db.query(FranjaOcupada).filter(FranjaOcupada.fecha == fecha).all()
     }
 
-    # Usar fecha base neutra para aritmética de tiempos
     from datetime import date as _date
-    base = datetime.combine(_date.min, horario.hora_apertura)
-    cierre_dt = datetime.combine(_date.min, horario.hora_cierre)
-
     ahora_t = now_madrid.time() if fecha == today_madrid else None
 
-    horas = _calcular_disponibles(
-        apertura=base,
-        cierre=cierre_dt,
-        duracion_minutos=servicio.duracion_minutos,
-        ocupadas=ocupadas,
-        ahora_madrid=ahora_t,
-    )
+    horas = []
+    for tramo in tramos:
+        base      = datetime.combine(_date.min, tramo.hora_apertura)
+        cierre_dt = datetime.combine(_date.min, tramo.hora_cierre)
+        horas.extend(_calcular_disponibles(
+            apertura=base,
+            cierre=cierre_dt,
+            duracion_minutos=servicio.duracion_minutos,
+            ocupadas=ocupadas,
+            ahora_madrid=ahora_t,
+        ))
 
     return DisponibilidadRead(fecha=fecha, servicio_id=servicio_id, horas_disponibles=horas)

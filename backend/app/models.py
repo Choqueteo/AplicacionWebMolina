@@ -54,6 +54,7 @@ class Usuario(Base):
                           SAEnum(Rol, native_enum=False, length=10)
                       )
     bloqueado       : Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    inasistencias   : Mapped[int]  = mapped_column(Integer, default=0, nullable=False)
 
     citas: Mapped[list["Cita"]] = relationship(back_populates="cliente")
 
@@ -79,7 +80,6 @@ class Servicio(Base):
 class HorarioPeluquero(Base):
     __tablename__ = "horario_peluquero"
     __table_args__ = (
-        UniqueConstraint("dia_semana", name="uq_horario_dia"),
         CheckConstraint("hora_apertura < hora_cierre", name="ck_horario_rango"),
     )
 

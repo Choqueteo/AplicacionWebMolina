@@ -368,6 +368,57 @@ def test_no_asistida_cliente_403(client, db_session, cliente_token, servicio_cor
     assert r.status_code == 403
 
 
+def test_no_asistida_incrementa_contador(client, db_session, admin_token, cliente_token, servicio_corte):
+    """Marcar una cita como no_asistida incrementa usuario.inasistencias en 1."""
+    usuario = db_session.query(Usuario).filter_by(email="cli@test.com").first()
+    cita = Cita(
+        cliente_id=usuario.id,
+        servicio_id=servicio_corte.id,
+        fecha=date.today() - timedelta(days=1),
+        hora_inicio=time(14, 0),
+        hora_fin=time(14, 30),
+        estado=EstadoCita.activa,
+    )
+    db_session.add(cita)
+    db_session.commit()
+    db_session.refresh(cita)
+
+    r = client.patch(f"/citas/{cita.id}/no-asistida", headers=_auth(admin_token))
+    assert r.status_code == 200
+
+    r = client.get(f"/usuarios/{usuario.id}", headers=_auth(admin_token))
+    assert r.status_code == 200
+    assert r.json()["inasistencias"] == 1
+
+
+def test_listar_citas_filtro_fecha(client, db_session, admin_token, servicio_corte, horario_dia, fecha_test):
+    """GET /citas?fecha=X devuelve solo las citas de esa fecha."""
+    c1 = Usuario(email="c1@test.com", password_hash=hash_password("x"),
+                 telefono="600000010", nombre_completo="C1", rol=Rol.cliente)
+    c2 = Usuario(email="c2@test.com", password_hash=hash_password("x"),
+                 telefono="600000011", nombre_completo="C2", rol=Rol.cliente)
+    db_session.add_all([c1, c2])
+    db_session.commit()
+    db_session.refresh(c1)
+    db_session.refresh(c2)
+
+    t1 = create_access_token(c1.id, c1.rol.value)
+    t2 = create_access_token(c2.id, c2.rol.value)
+
+    otra_fecha = fecha_test + timedelta(days=1)
+
+    # Reserva en fecha_test
+    client.post("/citas", json=_payload(servicio_corte.id, fecha_test, "10:00:00"), headers=_auth(t1))
+    # Reserva en otra_fecha (no debe aparecer en el filtro)
+    client.post("/citas", json=_payload(servicio_corte.id, otra_fecha, "10:00:00"), headers=_auth(t2))
+
+    r = client.get(f"/citas?fecha={fecha_test}", headers=_auth(admin_token))
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 1
+    assert data[0]["fecha"] == str(fecha_test)
+
+
 def test_cancelar_libera_franja_para_nueva_reserva(client, db_session, servicio_corte, horario_dia, fecha_test):
     """Tras cancelar, el slot queda libre y otro cliente puede reservarlo → 201."""
     c1 = Usuario(email="c1@test.com", password_hash=hash_password("x"),

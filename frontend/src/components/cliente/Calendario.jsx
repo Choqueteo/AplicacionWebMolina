@@ -38,14 +38,15 @@ function generarCeldas(año, mes) {
   return celdas
 }
 
-export default function Calendario({ diasAbiertos, fechaSeleccionada, onSeleccionar }) {
-  const hoy = new Date()
-  const [vistaAño, setVistaAño]  = useState(hoy.getFullYear())
-  const [vistaMes, setVistaMes]  = useState(hoy.getMonth())
+export default function Calendario({ diasAbiertos, fechaSeleccionada, onSeleccionar, permitirPasados = false }) {
+  const _now = new Date()
+  const hoy  = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate())
+  const initDate = (permitirPasados && fechaSeleccionada) ? fechaSeleccionada : hoy
+  const [vistaAño, setVistaAño]  = useState(initDate.getFullYear())
+  const [vistaMes, setVistaMes]  = useState(initDate.getMonth())
 
   const irMesAnterior = () => {
-    // No ir antes del mes actual
-    if (vistaAño === hoy.getFullYear() && vistaMes === hoy.getMonth()) return
+    if (!permitirPasados && vistaAño === hoy.getFullYear() && vistaMes === hoy.getMonth()) return
     if (vistaMes === 0) { setVistaAño(y => y - 1); setVistaMes(11) }
     else setVistaMes(m => m - 1)
   }
@@ -66,7 +67,7 @@ export default function Calendario({ diasAbiertos, fechaSeleccionada, onSeleccio
     if (!date) return
     const pasado = esPasado(date, hoy)
     const cerrado = !diasAbiertos.has(diaSemanaISO(date))
-    if (pasado || cerrado) return
+    if ((!permitirPasados && pasado) || cerrado) return
     onSeleccionar(date)
   }
 
@@ -86,7 +87,7 @@ export default function Calendario({ diasAbiertos, fechaSeleccionada, onSeleccio
           type="button"
           className={styles.navBtn}
           onClick={irMesAnterior}
-          disabled={esMesActual}
+          disabled={!permitirPasados && esMesActual}
           aria-label="Mes anterior"
         >
           ‹
@@ -119,13 +120,13 @@ export default function Calendario({ diasAbiertos, fechaSeleccionada, onSeleccio
           }
           const pasado  = esPasado(date, hoy)
           const cerrado = !diasAbiertos.has(diaSemanaISO(date))
-          const inactivo = pasado || cerrado
+          const inactivo = (!permitirPasados && pasado) || cerrado
           const esHoy  = mismosDia(date, hoy)
           const selec  = mismosDia(date, fechaSeleccionada)
 
           return (
             <div
-              key={date.toISOString()}
+              key={`${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`}
               role="gridcell"
               className={[
                 styles.dia,

@@ -70,68 +70,17 @@
   border-color: var(--c-gold);
 }
 
-/* ── Pestañas ─────────────────────────────────────────────────────────────── */
-.tabs {
-  position: sticky;
-  top: 53px; /* altura de la cabecera */
-  z-index: 9;
-  display: flex;
-  background: var(--c-surface);
-  border-bottom: 1px solid var(--c-border);
-}
-
-.tabs::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 50%;
-  height: 2px;
-  background: var(--c-gold);
-  transition: transform var(--transition-base) var(--ease-out);
-}
-
-.tabs[data-tab="mis-citas"]::after {
-  transform: translateX(100%);
-}
-
-.tab {
-  flex: 1;
-  padding: 0.75rem;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: var(--c-text-sec);
-  cursor: pointer;
-  transition: color var(--transition-fast) var(--ease-out);
-}
-
-.tab:hover {
-  color: var(--c-text);
-}
-
-.tabActiva {
-  color: var(--c-gold);
-  /* el indicador lo gestiona tabs::after con transform */
-}
-
 /* ── Contenido ───────────────────────────────────────────────────────────── */
-.tabContent {
-  animation: fadeSlideIn var(--transition-base) var(--ease-out) both;
-}
-
 .contenido {
   flex: 1;
   padding: 1.25rem 1rem;
+  padding-bottom: calc(56px + 1.5rem);
   max-width: 600px;
   width: 100%;
   margin: 0 auto;
 }
 
-.cargandoWrap {
+.centrado {
   display: flex;
   justify-content: center;
   padding: 3rem 0;
@@ -140,5 +89,59 @@
 .errorCarga {
   text-align: center;
   color: var(--c-error-text);
-  padding: 2rem 0;
+  padding: 2rem 1rem;
+}
+
+
+/* ── Barra inferior fija ─────────────────────────────────────────────────── */
+.bottomNav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  z-index: 20;
+  display: flex;
+  background: var(--c-surface);
+  border-top: 1px solid var(--c-border);
+}
+
+.navItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  color: var(--c-text-sec);
+  transition: color var(--transition-fast) var(--ease-out);
+}
+
+.navItem:hover {
+  color: var(--c-text);
+}
+
+.navItemActivo {
+  color: var(--c-gold);
+}
+
+.navIcon {
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.navLabel {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btnMiCuenta,
+  .btnLogout,
+  .navItem { transition: none; }
 }

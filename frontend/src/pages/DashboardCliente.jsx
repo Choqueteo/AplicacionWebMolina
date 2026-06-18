@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import ThemeToggle from '../components/ui/ThemeToggle'
@@ -11,6 +12,7 @@ import styles from './DashboardCliente.module.css'
 
 export default function DashboardCliente() {
   const { usuario, logout } = useAuth()
+  const navigate = useNavigate()
   const [pestana, setPestana] = useState('reservar')
 
   const [servicios, setServicios] = useState([])
@@ -42,9 +44,14 @@ export default function DashboardCliente() {
       {/* Cabecera */}
       <header className={styles.header}>
         <img src={logoRm} alt="RM Peluquería" className={styles.logo} />
-        <span className={styles.nombreUsuario}>
+        <button
+          type="button"
+          className={styles.btnMiCuenta}
+          onClick={() => navigate('/mi-cuenta')}
+          title="Mi cuenta"
+        >
           {usuario?.nombre_completo?.split(' ')[0]}
-        </span>
+        </button>
         <div className={styles.headerAcciones}>
           <ThemeToggle />
           <button

@@ -17,7 +17,7 @@ def _payload(servicio_id, fecha, hora="10:00:00"):
 # ---------------------------------------------------------------------------
 
 def test_contador_inasistencias(client, db_session, admin_token, cliente_token, servicio_corte):
-    """Después de 2 citas marcadas no_asistida, GET /usuarios/{id} devuelve inasistencias=2."""
+    """Después de 2 citas marcadas no_asistida via endpoint, GET /usuarios/{id} devuelve inasistencias=2."""
     cliente = db_session.query(Usuario).filter_by(email="cli@test.com").first()
 
     for hora in [time(10, 0), time(11, 0)]:
@@ -26,11 +26,16 @@ def test_contador_inasistencias(client, db_session, admin_token, cliente_token, 
             servicio_id=servicio_corte.id,
             fecha=date.today() - timedelta(days=1),
             hora_inicio=hora,
-            hora_fin=time(hora.hour, hora.minute + 30) if hora.minute == 0 else time(hora.hour + 1, 0),
-            estado=EstadoCita.no_asistida,
+            hora_fin=time(hora.hour, hora.minute + 30),
+            estado=EstadoCita.activa,
         )
         db_session.add(cita)
     db_session.commit()
+
+    citas = db_session.query(Cita).filter_by(cliente_id=cliente.id).all()
+    for cita in citas:
+        r = client.patch(f"/citas/{cita.id}/no-asistida", headers=_auth(admin_token))
+        assert r.status_code == 200
 
     r = client.get(f"/usuarios/{cliente.id}", headers=_auth(admin_token))
     assert r.status_code == 200

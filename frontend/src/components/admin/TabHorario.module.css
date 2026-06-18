@@ -1,0 +1,304 @@
+.centrado {
+  display: flex;
+  justify-content: center;
+  padding: 2.5rem 0;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+/* ── Tarjeta de día ──────────────────────────────────────────────────────── */
+.diaCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-card);
+  animation: fadeSlideIn var(--transition-base) var(--ease-out) both;
+}
+
+.diaCard:nth-child(2) { animation-delay: 30ms;  }
+.diaCard:nth-child(3) { animation-delay: 60ms;  }
+.diaCard:nth-child(4) { animation-delay: 90ms;  }
+.diaCard:nth-child(n+5) { animation-delay: 120ms; }
+
+.diaHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.diaNombre {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.diaHoras {
+  font-size: var(--text-sm);
+  color: var(--c-text-sec);
+  font-variant-numeric: tabular-nums;
+}
+
+.diaCerrado {
+  font-size: var(--text-sm);
+  color: var(--c-text-sec);
+  opacity: 0.5;
+}
+
+/* ── Múltiples tramos por día ────────────────────────────────────────────── */
+.listaTramos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.tramoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.tramoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.tramoHoras {
+  font-size: var(--text-sm);
+  color: var(--c-text-sec);
+  font-variant-numeric: tabular-nums;
+  flex: 1;
+}
+
+.tramoBotones {
+  display: flex;
+  gap: 0.625rem;
+  flex-shrink: 0;
+}
+
+.btnAnadir {
+  background: none;
+  border: none;
+  padding: 0.125rem 0;
+  font-family: 'Inter', sans-serif;
+  font-size: var(--text-sm);
+  color: var(--c-text-sec);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity var(--transition-fast) var(--ease-out),
+              color   var(--transition-fast) var(--ease-out);
+  align-self: flex-start;
+}
+
+.btnAnadir:hover:not(:disabled) {
+  opacity: 1;
+  color: var(--c-gold);
+}
+
+.btnAnadir:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.diaAcciones {
+  display: flex;
+  gap: 0.625rem;
+}
+
+.btnAccion {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: var(--text-sm);
+  color: var(--c-gold);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.8;
+  transition: opacity var(--transition-fast) var(--ease-out);
+}
+
+.btnAccion:hover:not(:disabled) { opacity: 1; }
+.btnAccion:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.btnEliminar {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: var(--text-sm);
+  color: var(--c-error-text);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.65;
+  transition: opacity var(--transition-fast) var(--ease-out);
+}
+
+.btnEliminar:hover:not(:disabled) { opacity: 1; }
+.btnEliminar:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── Formulario inline ───────────────────────────────────────────────────── */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--c-border);
+  animation: fadeSlideIn var(--transition-fast) var(--ease-out) both;
+}
+
+.formFila {
+  display: flex;
+  gap: 1rem;
+}
+
+.campo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--c-text-sec);
+}
+
+.inputTime {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  background: var(--c-input-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-input);
+  font-family: 'Inter', sans-serif;
+  font-size: var(--text-base);
+  color: var(--c-text);
+  outline: none;
+  transition: border-color var(--transition-fast) var(--ease-out);
+}
+
+.inputTime:focus {
+  border-color: var(--c-gold);
+}
+
+/* Forzar estilo del picker nativo en modo oscuro */
+.inputTime::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
+}
+
+.formAcciones {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btnGuardar {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  background: var(--c-gold);
+  border: none;
+  border-radius: var(--radius-btn);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1A1814;
+  cursor: pointer;
+  transition: filter var(--transition-fast) var(--ease-out);
+}
+
+.btnGuardar:hover:not(:disabled) { filter: brightness(1.1); }
+.btnGuardar:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Confirmación de borrado inline ──────────────────────────────────────── */
+.confirmar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--c-border);
+  animation: fadeSlideIn var(--transition-fast) var(--ease-out) both;
+}
+
+.confirmarTexto {
+  font-size: 0.875rem;
+  color: var(--c-text);
+}
+
+.confirmarAcciones {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btnConfirmarRojo {
+  flex: 1;
+  padding: 0.55rem 1rem;
+  background: var(--c-error);
+  border: none;
+  border-radius: var(--radius-btn);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  cursor: pointer;
+  transition: filter var(--transition-fast) var(--ease-out);
+}
+
+.btnConfirmarRojo:hover:not(:disabled) { filter: brightness(1.15); }
+.btnConfirmarRojo:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btnVolver {
+  flex: 1;
+  padding: 0.55rem 1rem;
+  background: transparent;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-btn);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--c-text-sec);
+  cursor: pointer;
+  transition: border-color var(--transition-fast) var(--ease-out),
+              color        var(--transition-fast) var(--ease-out);
+}
+
+.btnVolver:hover:not(:disabled) {
+  border-color: var(--c-gold);
+  color: var(--c-gold);
+}
+
+.btnVolver:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.errorGlobal {
+  background: var(--c-error-bg);
+  color: var(--c-error-text);
+  border-left: 3px solid var(--c-error);
+  border-radius: var(--radius-input);
+  padding: 0.65rem 0.875rem;
+  font-size: 0.875rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diaCard,
+  .form,
+  .confirmar { animation: none; }
+
+  .btnAccion,
+  .btnEliminar,
+  .btnAnadir,
+  .inputTime,
+  .btnGuardar,
+  .btnConfirmarRojo,
+  .btnVolver { transition: none; }
+}

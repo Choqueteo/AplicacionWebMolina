@@ -38,8 +38,13 @@ export function AuthProvider({ children }) {
     return userData // el llamador navega según userData.rol
   }
 
+  const refreshUsuario = useCallback(async () => {
+    const { data } = await client.get('/usuarios/me')
+    setUsuario(data)
+  }, [])
+
   return (
-    <AuthCtx.Provider value={{ usuario, cargando, login, logout }}>
+    <AuthCtx.Provider value={{ usuario, cargando, login, logout, refreshUsuario }}>
       {children}
     </AuthCtx.Provider>
   )

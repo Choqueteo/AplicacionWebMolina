@@ -1,0 +1,35 @@
+.seccion {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-card);
+  padding: 1.25rem;
+}
+
+.titulo {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.msgError {
+  font-size: var(--text-sm);
+  color: var(--c-error-text);
+  background: var(--c-error-bg);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}
+
+.msgExito {
+  font-size: var(--text-sm);
+  color: var(--c-success-text);
+  background: var(--c-success-bg);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}

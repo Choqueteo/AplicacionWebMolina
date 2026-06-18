@@ -134,7 +134,7 @@ export default function TabReservar({ servicios, diasAbiertos, onVerMisCitas }) 
         <p className={styles.exitoIcono}>✓</p>
         <h2>¡Reserva confirmada!</h2>
         <p className={styles.exitoDetalle}>
-          <strong>{servicio.nombre}</strong> — {formatFechaLarga(fecha)} a las {hora}
+          <strong>{servicio.nombre}</strong> — {formatFechaLarga(fecha)} a las {hora.slice(0, 5)}
         </p>
         <div className={styles.exitoAcciones}>
           <Button onClick={onVerMisCitas}>Ver mis citas</Button>
@@ -197,7 +197,7 @@ export default function TabReservar({ servicios, diasAbiertos, onVerMisCitas }) 
                   className={`${styles.horaBtn} ${hora === h ? styles.horaSeleccionada : ''}`}
                   onClick={() => { setHora(h); setErrorReserva('') }}
                 >
-                  {h}
+                  {h.slice(0, 5)}
                 </button>
               ))}
             </div>
@@ -220,7 +220,7 @@ export default function TabReservar({ servicios, diasAbiertos, onVerMisCitas }) 
             </div>
             <div className={styles.resumenFila}>
               <span className={styles.resumenLabel}>Hora</span>
-              <span>{hora}</span>
+              <span>{hora.slice(0, 5)}</span>
             </div>
             <div className={styles.resumenFila}>
               <span className={styles.resumenLabel}>Duración</span>

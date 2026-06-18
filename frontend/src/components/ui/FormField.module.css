@@ -51,6 +51,11 @@
   box-shadow: 0 0 0 3px rgba(163, 45, 45, 0.15);
 }
 
+.input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .suffix {
   position: absolute;
   right: 0.5rem;

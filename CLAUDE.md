@@ -47,7 +47,7 @@ Dependencias de seguridad: `get_usuario_actual`, `solo_admin`.
 
 - **Usuario**: `id`, `email` (único), `password_hash`, `telefono`, `nombre_completo`, `rol` ('admin' | 'cliente'), `bloqueado` (bool, def. false).
 - **Servicio**: `id`, `nombre`, `duracion_minutos` (múltiplo de 30), `precio`, `activo` (bool, borrado lógico).
-- **HorarioPeluquero**: tramos de apertura por día (admite varios tramos/día, p. ej. 9:00–14:00 y 17:00–21:00).
+- **HorarioPeluquero**: tramos de apertura por día (admite varios tramos/día, p. ej. 9:00–14:00 y 17:00–21:00). Validación de solapamiento en el router antes del commit.
 - **Cita**: `id`, `cliente_id`, `servicio_id`, `fecha`, `hora_inicio`, `hora_fin`, `estado` ('activa' | 'cancelada' | 'no_asistida').
 - **FranjaOcupada**: `id`, `cita_id` (FK), `fecha`, `hora`. Ocupación real; fuente de verdad de la disponibilidad.
 
@@ -76,8 +76,19 @@ Corte = 30 min = 1 franja. Tinte/mechas = 60 min = 2 franjas (siempre, sin repos
 ## Inasistencias (no-show)
 
 - `PATCH /citas/{id}/no-asistida`, solo admin: marca una cita PASADA y 'activa' como 'no_asistida'. No futuras, no canceladas, no ya marcadas. La marca es manual; la app no puede saber quién asistió.
-- Contador de inasistencias por cliente: **calculado** contando sus citas 'no_asistida' (no guardar un número). Visible para el admin.
+- Contador de inasistencias: campo **almacenado** `inasistencias: int` (default 0) en `Usuario`. Se incrementa en la misma transacción que marca la cita. Visible para el admin. La migración `c7e4a1d9f2b3` backfilla el histórico existente al añadir la columna.
 - Veto: campo `bloqueado` en Usuario, controlado por el admin. Si `bloqueado`, `POST /citas` devuelve 403. El cobro de inasistencias es presencial.
+
+---
+
+## Purga de citas antiguas (RGPD — minimización de datos)
+
+- Script `backend/scripts/purga_citas.py`: borra citas cuya `fecha` sea anterior a la ventana de retención junto con sus `FranjaOcupada`. Idempotente.
+- Ventana configurable: variable de entorno `RETENCION_MESES` (default 24 meses en `settings.retencion_meses`).
+- Modo dry-run: `python scripts/purga_citas.py --dry-run` — cuenta sin borrar.
+- Borrado real en transacción: primero `FranjaOcupada WHERE cita_id IN (...)`, luego `Cita`.
+- El campo `inasistencias` almacenado garantiza que purgar citas `no_asistida` no pierde el histórico de vetos.
+- Pensado para ejecutarse como **Render Cron Job** (diario o semanal). La configuración del cron se hace al desplegar en Render.
 
 ---
 

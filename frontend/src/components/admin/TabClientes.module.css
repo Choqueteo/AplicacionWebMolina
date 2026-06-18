@@ -1,0 +1,246 @@
+.centrado {
+  display: flex;
+  justify-content: center;
+  padding: 2.5rem 0;
+}
+
+.vacio {
+  text-align: center;
+  color: var(--c-text-sec);
+  font-size: 0.9375rem;
+  padding: 2.5rem 0;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ── Tarjeta de cliente ──────────────────────────────────────────────────── */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-card);
+  animation: fadeSlideIn var(--transition-base) var(--ease-out) both;
+}
+
+.cardBloqueada {
+  border-color: color-mix(in srgb, var(--c-error) 30%, var(--c-border));
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cardNombre {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.badges {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.badgeActivo {
+  color: var(--c-success-text);
+  background: var(--c-success-bg);
+}
+
+.badgeBloqueado {
+  color: var(--c-error-text);
+  background: var(--c-error-bg);
+}
+
+.badgeInasistencias {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--c-warn);
+  background: var(--c-warn-bg);
+  white-space: nowrap;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  font-size: var(--text-sm);
+}
+
+.tel {
+  color: var(--c-gold);
+  text-decoration: none;
+}
+
+.tel:hover {
+  text-decoration: underline;
+}
+
+.sep {
+  color: var(--c-border);
+}
+
+.email {
+  color: var(--c-text-sec);
+  word-break: break-all;
+}
+
+.cardAcciones {
+  margin-top: 0.125rem;
+}
+
+.btnBloquear {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: var(--text-sm);
+  color: var(--c-error-text);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.7;
+  transition: opacity var(--transition-fast) var(--ease-out);
+}
+
+.btnBloquear:hover { opacity: 1; }
+
+.btnDesbloquear {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: var(--text-sm);
+  color: var(--c-success-text);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.8;
+  transition: opacity var(--transition-fast) var(--ease-out);
+}
+
+.btnDesbloquear:hover { opacity: 1; }
+
+/* ── Modal de confirmación inline ───────────────────────────────────────── */
+.modal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.75rem;
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-input);
+  animation: fadeSlideIn var(--transition-fast) var(--ease-out) both;
+}
+
+.modalTexto {
+  font-size: 0.875rem;
+  color: var(--c-text);
+  line-height: 1.4;
+}
+
+.modalAcciones {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btnConfirmarRojo {
+  flex: 1;
+  padding: 0.55rem 1rem;
+  background: var(--c-error);
+  border: none;
+  border-radius: var(--radius-btn);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  cursor: pointer;
+  transition: filter var(--transition-fast) var(--ease-out);
+}
+
+.btnConfirmarRojo:hover:not(:disabled) { filter: brightness(1.15); }
+.btnConfirmarRojo:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btnConfirmarVerde {
+  flex: 1;
+  padding: 0.55rem 1rem;
+  background: var(--c-success);
+  border: none;
+  border-radius: var(--radius-btn);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  cursor: pointer;
+  transition: filter var(--transition-fast) var(--ease-out);
+}
+
+.btnConfirmarVerde:hover:not(:disabled) { filter: brightness(1.15); }
+.btnConfirmarVerde:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btnVolver {
+  flex: 1;
+  padding: 0.55rem 1rem;
+  background: transparent;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-btn);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--c-text-sec);
+  cursor: pointer;
+  transition: border-color var(--transition-fast) var(--ease-out),
+              color        var(--transition-fast) var(--ease-out);
+}
+
+.btnVolver:hover:not(:disabled) {
+  border-color: var(--c-gold);
+  color: var(--c-gold);
+}
+
+.btnVolver:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.errorGlobal {
+  background: var(--c-error-bg);
+  color: var(--c-error-text);
+  border-left: 3px solid var(--c-error);
+  border-radius: var(--radius-input);
+  padding: 0.65rem 0.875rem;
+  font-size: 0.875rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .modal { animation: none; }
+
+  .btnBloquear,
+  .btnDesbloquear,
+  .btnConfirmarRojo,
+  .btnConfirmarVerde,
+  .btnVolver { transition: none; }
+}

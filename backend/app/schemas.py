@@ -147,6 +147,7 @@ class ServicioUpdate(BaseModel):
     nombre: str | None = Field(default=None, min_length=1, max_length=100)
     duracion_minutos: int | None = Field(default=None, gt=0)
     precio: Decimal | None = Field(default=None, ge=0)
+    activo: bool | None = None
 
     model_config = {"extra": "forbid"}
 

@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -17,6 +16,18 @@ def _get_or_404(horario_id: int, db: Session) -> HorarioPeluquero:
     return tramo
 
 
+def _validar_sin_solapamiento(db: Session, dia_semana: int, apertura, cierre, excluir_id: int | None = None) -> None:
+    q = db.query(HorarioPeluquero).filter(HorarioPeluquero.dia_semana == dia_semana)
+    if excluir_id is not None:
+        q = q.filter(HorarioPeluquero.id != excluir_id)
+    for t in q.all():
+        if not (cierre <= t.hora_apertura or apertura >= t.hora_cierre):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="El tramo se solapa con uno existente ese día",
+            )
+
+
 # Ruta literal antes que ruta con parámetro (CLAUDE.md)
 
 @router.get("/horario", response_model=list[HorarioRead])
@@ -24,7 +35,7 @@ def listar_horario(
     _: Usuario = Depends(get_usuario_actual),
     db: Session = Depends(get_db),
 ):
-    return db.query(HorarioPeluquero).order_by(HorarioPeluquero.dia_semana).all()
+    return db.query(HorarioPeluquero).order_by(HorarioPeluquero.dia_semana, HorarioPeluquero.hora_apertura).all()
 
 
 @router.post("/horario", response_model=HorarioRead, status_code=status.HTTP_201_CREATED)
@@ -33,17 +44,11 @@ def crear_horario(
     _: Usuario = Depends(solo_admin),
     db: Session = Depends(get_db),
 ):
+    _validar_sin_solapamiento(db, datos.dia_semana, datos.hora_apertura, datos.hora_cierre)
     tramo = HorarioPeluquero(**datos.model_dump())
     db.add(tramo)
-    try:
-        db.commit()
-        db.refresh(tramo)
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Ya existe un tramo para ese día de la semana",
-        )
+    db.commit()
+    db.refresh(tramo)
     return tramo
 
 
@@ -57,12 +62,12 @@ def actualizar_horario(
     tramo = _get_or_404(horario_id, db)
     for campo, valor in datos.model_dump(exclude_unset=True).items():
         setattr(tramo, campo, valor)
-    # Revalidar que apertura < cierre con los valores combinados
     if tramo.hora_cierre <= tramo.hora_apertura:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="hora_cierre debe ser posterior a hora_apertura",
         )
+    _validar_sin_solapamiento(db, tramo.dia_semana, tramo.hora_apertura, tramo.hora_cierre, excluir_id=tramo.id)
     db.commit()
     db.refresh(tramo)
     return tramo

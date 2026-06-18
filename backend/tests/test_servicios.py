@@ -74,3 +74,19 @@ def test_borrar_logico(client, admin_token):
     r = client.get(f"/servicios/{servicio_id}", headers=_auth(admin_token))
     assert r.status_code == 200
     assert r.json()["activo"] is False
+
+
+def test_reactivar_servicio_via_put(client, admin_token):
+    """DELETE desactiva; PUT con {activo: true} reactiva el servicio."""
+    r = client.post("/servicios", json=_PAYLOAD, headers=_auth(admin_token))
+    servicio_id = r.json()["id"]
+
+    client.delete(f"/servicios/{servicio_id}", headers=_auth(admin_token))
+
+    r = client.put(
+        f"/servicios/{servicio_id}",
+        json={"activo": True},
+        headers=_auth(admin_token),
+    )
+    assert r.status_code == 200
+    assert r.json()["activo"] is True

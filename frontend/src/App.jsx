@@ -1,10 +1,11 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
-import { RoleRoute } from './routes/PrivateRoute'
+import { PrivateRoute, RoleRoute } from './routes/PrivateRoute'
 import Login            from './pages/Login'
 import Registro         from './pages/Registro'
 import DashboardCliente from './pages/DashboardCliente'
+import MiCuenta         from './pages/MiCuenta'
 import PanelAdmin       from './pages/PanelAdmin'
 
 /** Redirige la raíz según estado de sesión: sin sesión → login, cliente → dashboard, admin → panel. */
@@ -30,6 +31,9 @@ export default function App() {
             } />
             <Route path="/admin"     element={
               <RoleRoute rol="admin"><PanelAdmin /></RoleRoute>
+            } />
+            <Route path="/mi-cuenta" element={
+              <PrivateRoute><MiCuenta /></PrivateRoute>
             } />
             {/* Cualquier ruta desconocida va a la raíz (que redirige según sesión) */}
             <Route path="*" element={<Navigate to="/" replace />} />

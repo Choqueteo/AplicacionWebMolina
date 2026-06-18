@@ -36,15 +36,15 @@ def _key_usuario(request: Request) -> str:
 
 @router.get("/citas", response_model=list[CitaRead])
 def listar_citas(
+    fecha: date | None = None,
     _: Usuario = Depends(solo_admin),
     db: Session = Depends(get_db),
 ):
-    """Agenda completa. Solo admin."""
-    return (
-        db.query(Cita)
-        .order_by(Cita.fecha, Cita.hora_inicio)
-        .all()
-    )
+    """Agenda completa. Solo admin. ?fecha=YYYY-MM-DD filtra por día."""
+    q = db.query(Cita).order_by(Cita.fecha, Cita.hora_inicio)
+    if fecha:
+        q = q.filter(Cita.fecha == fecha)
+    return q.all()
 
 
 @router.get("/citas/mias", response_model=list[CitaRead])
@@ -285,6 +285,7 @@ def marcar_no_asistida(
         )
 
     cita.estado = EstadoCita.no_asistida
+    cita.cliente.inasistencias += 1
     db.commit()
     db.refresh(cita)
     return cita

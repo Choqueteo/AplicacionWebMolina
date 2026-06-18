@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     telegram_bot_token: str | None = None
     telegram_chat_id: str | None = None
+    retencion_meses: int = 24
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
