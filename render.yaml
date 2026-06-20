@@ -17,9 +17,9 @@ services:
       # ── No secretas: declaradas aquí (van al repo) ───────────────────────────
       - key: ENVIRONMENT
         value: production
-      # FASE ONRENDER → dominio propio: cambiar a '["https://rmolinastyle.com","https://www.rmolinastyle.com"]'
+      # Dominio propio activo. Anterior (onrender.com): '["https://rm-frontend-4wr6.onrender.com"]'
       - key: ALLOWED_ORIGINS
-        value: '["https://rm-frontend-4wr6.onrender.com"]'
+        value: '["https://rmolinastyle.com","https://www.rmolinastyle.com"]'
       - key: ALGORITHM
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
@@ -73,9 +73,9 @@ services:
         source: /*
         destination: /index.html
     envVars:
-      # FASE ONRENDER → dominio propio: cambiar a https://api.rmolinastyle.com
+      # Dominio propio activo. Anterior (onrender.com): https://rm-backend-z7zb.onrender.com
       - key: VITE_API_URL
-        value: https://rm-backend-z7zb.onrender.com
+        value: https://api.rmolinastyle.com
 
 databases:
   - name: rm-postgres
