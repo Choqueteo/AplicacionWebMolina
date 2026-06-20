@@ -2,9 +2,11 @@
 
 > Documento de continuidad. Léelo junto a `CLAUDE.md` para retomar el proyecto en cualquier chat nuevo.
 
+> **ESTADO ACTUAL: 🟢 EN PRODUCCIÓN.** La app está desplegada y viva en **https://rmolinastyle.com** (API en **https://api.rmolinastyle.com**). Quedan tareas de puesta a punto antes de entregar al peluquero (ver "Pendientes").
+
 ## Qué es
 
-App web de gestión de citas para una peluquería/barbería real (RM), un único peluquero. Stack: FastAPI + React (Vite) + PostgreSQL, desplegará en Render. Mobile-first. Desarrollador único.
+App web de gestión de citas para una peluquería/barbería real (RM), un único peluquero. Stack: FastAPI + React (Vite) + PostgreSQL, desplegada en Render. Mobile-first. Desarrollador único.
 
 ---
 
@@ -24,12 +26,12 @@ App web de gestión de citas para una peluquería/barbería real (RM), un único
 
 **95 tests pytest en verde.** BD local en Docker (PostgreSQL) + HeidiSQL.
 
-### Seed de admins — ACTUALIZADO
+### Seed de admins
 
-- Correos **`admin@rmstyle.com`** (desarrollador) y **`peluquero@rmstyle.com`** (peluquero), desde variables de entorno.
-- Contraseñas **sencillas solo para LOCAL** (`Admin1234` / `Peluquero1234`) en el `.env` local (gitignored). En `.env.example` solo los nombres.
-- Seed **idempotente** (upsert por email, sin duplicados, tope de 2 admins).
-- ⚠️ En **producción (Render)** las contraseñas deben ser **fuertes** y distintas de las de local.
+- Correos **`admin@rmolinastyle.com`** (desarrollador) y **`peluquero@rmolinastyle.com`** (peluquero), desde variables de entorno. (En local se usaron `@rmstyle.com`; en producción son `@rmolinastyle.com`, solo identificadores de login.)
+- Seed **idempotente, CREATE-IF-MISSING** (upsert por email, sin duplicados, tope de 2 admins).
+- ⚠️ **Comportamiento clave**: si el admin **no existe** → lo crea con todos los datos (incluida la contraseña). Si **ya existe** → solo garantiza `rol=admin` y `bloqueado=False`, y **nunca toca** `password_hash`, `nombre_completo` ni `telefono`.
+- ⚠️ **Implicación práctica**: una vez creado un admin, **cambiar su contraseña en las variables de Render NO la actualiza**. Para resetearla hay que borrar su fila en la BD y re-sembrar (ver Pendientes → login del peluquero).
 
 ### Contratos de backend confirmados (los usa el frontend)
 
@@ -50,150 +52,90 @@ App web de gestión de citas para una peluquería/barbería real (RM), un único
 
 ---
 
-## Frontend — Fase A COMPLETADA
+## Frontend — Fases A, B, C, C.extra y D — COMPLETADAS
 
-Cimientos: Vite + React (JS), `react-router-dom`, `axios`. Cliente HTTP centralizado (`src/api/client.js`) con interceptor Bearer y manejo central de **401** (logout + a `/login`, salvo login fallido) y **409** (`error.isConflict`). AuthContext (usuario+rol, rehidratación vía `/usuarios/me`, token en localStorage). Rutas por rol.
-
-## Frontend — Fase B COMPLETADA
-
-Login y Registro reales con estética premium.
-
-- **Tema claro/oscuro manual** (toggle persistido; por defecto oscuro, con `prefers-color-scheme` como inicial la primera vez). Tokens en `theme.css`.
-- CSS Modules + variables CSS. Sin frameworks de UI.
-- **Tipografía self-hosted** (RGPD): Cormorant Garamond (serif) + Inter (sans) vía `@fontsource/*`.
-- **Logo**: `src/assets/logo-rm.png` (PNG transparente, ambos modos).
-- **Login**: errores 401 / 429 / 5xx (mensajes distintos), loading, ver/ocultar contraseña con **icono SVG** (`currentColor`, respeta modo claro/oscuro).
-- **Registro**: nombre + apellidos (se combinan en `nombre_completo`), teléfono, email, contraseña. Errores 422 por campo + 409 (email duplicado). **Auto-login tras registro**. Textos de ayuda por campo (`FormField` con prop `ayuda` + `aria-describedby`) + frase de privacidad. Password muestra "Mínimo 8 caracteres".
-
-## Frontend — Fase C COMPLETADA
-
-Dashboard del cliente.
-
-- **Pestañas arriba** (Reservar | Mis citas). Cabecera con logo, nombre (botón), ThemeToggle y Logout.
-- **Reservar (todo en una pantalla, progresivo)**: servicio → **calendario propio** (días pasados/cerrados deshabilitados usando `/horario`; hoy/seleccionado resaltados; accesible) → horas vía `/disponibilidad` → resumen + confirmar (`POST /citas`). Manejo de 409/403/422.
-- **Mis citas**: `GET /citas/mias` cruzado con `serviciosMap`. Etiquetas derivadas (Reservada/Realizada/No asistió/Cancelada). Cancelar (con modal) solo en futuras activas.
-- **Correcciones aplicadas**: etiqueta "pasada/futura" y botón Cancelar usan **fecha + hora** (alineado con el backend); variables CSS verificadas (`--c-border` añadido si faltaba); **fallback** para servicios desactivados; formato es-ES ("25,50 €", "30 min"/"1 h"); "Realizada" en verde apagado/neutro.
-- **Pulido**: tipografía mayor (inputs/cuerpo ≥ 16px, secundario ≥ 14-15px; verificado meta viewport); transiciones/micro-interacciones con mesura (cambio de pestaña con `@keyframes` re-disparada por `key` + indicador deslizante; hover/seleccionado en tarjetas/horas/calendario; modal; solo `transform`/`opacity`; respeta `prefers-reduced-motion`; tokens de transición en `theme.css`).
-
-## Frontend — Fase C.extra COMPLETADA — "Mi cuenta"
-
-Pantalla de gestión del perfil propio, accesible tocando el nombre en la cabecera del dashboard.
-
-- **Ruta protegida** `/mi-cuenta` (`PrivateRoute`, accesible a cualquier rol) con header propio (← Volver, título, ThemeToggle).
-- **FormularioPerfil**: email read-only/disabled con nota, nombre completo y teléfono editables, pre-poblados con los datos actuales. Éxito refresca `AuthContext` para actualizar la cabecera al instante. Errores 422 campo a campo.
-- **FormularioPassword**: contraseña actual (toggle visible con **icono SVG**), nueva (toggle visible con **icono SVG**, "Mínimo 8 caracteres"), repetir nueva. Validación cliente (no coinciden); errores 400 (contraseña actual incorrecta), 422, 429, resetea campos en éxito.
-- Ambos componentes son **agnósticos al rol** (Phase D los reutiliza sin cambios).
-- `refreshUsuario()` añadido a `AuthContext` para re-fetch `/usuarios/me` y actualizar estado.
+- **Fase A (cimientos)**: Vite + React (JS), `react-router-dom`, `axios`. Cliente HTTP centralizado (`src/api/client.js`) con interceptor Bearer y manejo central de **401** (logout + a `/login`) y **409** (`error.isConflict`). AuthContext (usuario+rol, rehidratación vía `/usuarios/me`, token en localStorage). Rutas por rol.
+- **Fase B (login/registro)**: pantallas reales con estética premium. Tema claro/oscuro manual (por defecto oscuro). CSS Modules + variables CSS. Tipografía self-hosted (RGPD): Cormorant Garamond + Inter. Logo `src/assets/logo-rm.png`. Auto-login tras registro. Errores 422 por campo + 409.
+- **Fase C (dashboard cliente)**: pestañas Reservar / Mis citas. Reservar progresivo (servicio → calendario propio → horas → confirmar). Etiquetas derivadas. Cancelar en futuras activas. Formato es-ES. Micro-interacciones con `prefers-reduced-motion`.
+- **Fase C.extra ("Mi cuenta")**: `/mi-cuenta` (cualquier rol). FormularioPerfil (email read-only; nombre y teléfono editables) y FormularioPassword. `refreshUsuario()` en AuthContext.
+- **Fase D (panel admin)**: shell mobile-first con barra inferior (Agenda / Servicios / Horario / Clientes). TabAgenda (citas del día, no-show, cancelar), TabServicios (CRUD + activar/desactivar), TabHorario (N tramos/día), TabClientes (inasistencias, bloquear/desbloquear). Iconos SVG inline, bug de calendario "hoy" corregido (componentes locales, no UTC).
 
 ---
 
-## Notificaciones al peluquero (Telegram) — COMPLETADO y VERIFICADO
+## Notificaciones al peluquero (Telegram) — COMPLETADO
 
-Aviso al peluquero por Telegram cuando un cliente reserva o cancela.
-
-- Disparadores: `POST /citas` con éxito ("nueva reserva") y `PATCH /citas/{id}/cancelar` **solo si cancela el cliente** (no si cancela el admin).
-- Envío en **segundo plano** (`BackgroundTasks`) y **tras confirmar la transacción** en la BD; los fallos se capturan/registran y **nunca** rompen ni retrasan la reserva/cancelación. No envía si faltan las variables de entorno.
-- Mensaje conciso: nombre, teléfono, servicio, fecha y hora, acción. Minimización RGPD.
-- `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` en `.env` local (gitignored); en `.env.example` solo los nombres.
-- **Verificado**: el aviso llega correctamente al chat del peluquero.
-- ⚠️ En **producción (Render)** hay que configurar esas dos variables de entorno (con el `chat_id` del peluquero).
+Aviso al peluquero por Telegram cuando un cliente reserva o cancela. Envío en `BackgroundTasks` tras confirmar la transacción; los fallos no rompen la operación. Minimización RGPD. `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` configurados en Render (el `chat_id` es el del peluquero).
+⚠️ Para que los avisos lleguen, el peluquero debe haber hecho `/start` al bot al menos una vez (ver Pendientes).
 
 ---
 
-## Herramienta de desarrollo — Compartir en local con el peluquero
+## Purga de citas (RGPD) — IMPLEMENTADA (script), pendiente de programar
 
-- **Un solo túnel** de Cloudflare con **proxy de Vite**: `vite.config.js` proxya `/api` → `http://localhost:8000` (rewrite que quita `/api`), `server.host: true`, `allowedHosts` incluye `.trycloudflare.com`. `VITE_API_URL=/api` en `.env.local`. Mismo origen, sin CORS. *Solo dev; en producción `VITE_API_URL` será la URL absoluta del backend.*
-- Comando: `cloudflared tunnel --url http://localhost:5173`. Si da errores QUIC, añadir `--protocol http2` o desactivar la VPN (la VPN fue la causa de los timeouts).
-- ⚠️ Expone el entorno local a internet: solo demos cortas, **parar el túnel al terminar**.
-
----
-
-## Purga de citas (RGPD) — IMPLEMENTADA
-
-- **Contador almacenado**: `Usuario.inasistencias` (campo int, migración `c7e4a1d9f2b3` con backfill). Ya no se calcula dinámicamente.
-- **Script**: `backend/scripts/purga_citas.py` — borrado real, dry-run, ventana 24 meses (configurable via `RETENCION_MESES`).
-- **Pendiente**: configurar el Render Cron Job al desplegar (diario o semanal, comando `python scripts/purga_citas.py`).
+- **Contador almacenado**: `Usuario.inasistencias` (migración `c7e4a1d9f2b3` con backfill).
+- **Script**: `backend/scripts/purga_citas.py` — borrado real, dry-run, ventana 24 meses (`RETENCION_MESES`).
+- **Pendiente**: configurar el Render Cron Job (ver Pendientes).
 
 ---
 
-## Frontend — Fase D COMPLETADA
+## Despliegue en Render — ✅ COMPLETADO (EN PRODUCCIÓN)
 
-Dashboard del admin (panel del peluquero), mobile-first con barra de navegación inferior fija (4 secciones).
+La app está **desplegada y viva** en su dominio propio. Se desplegó vía **Blueprint** (`render.yaml`).
 
-- **Shell `PanelAdmin.jsx`** + `DashboardAdmin.module.css`: cabecera con logo, botón Mi cuenta (→ `/mi-cuenta`), ThemeToggle y Salir. Barra inferior fija (56px) con Agenda / Servicios / Horario / Clientes.
-- **TabAgenda**: agenda del día seleccionado. Navegación ← [fecha] → [Hoy] [icono SVG calendario]. Citas con nombre + teléfono (clicable), servicio y etiqueta derivada. "No asistió" solo para citas pasadas activas; "Cancelar" solo para futuras activas. Modal de confirmación inline.
-- **TabServicios**: lista con badges Activo/Inactivo. Edición inline (form dentro de la tarjeta). Crear, desactivar (`DELETE`) y reactivar (`PUT` con `{activo: true}`).
-- **TabHorario**: 7 días de la semana; cada día lista **todos sus tramos** (jornada partida). Botón "+ Añadir tramo" siempre visible. Editar/eliminar cada tramo por separado con formulario inline y confirmación inline.
-- **TabClientes**: lista filtrada a `rol === 'cliente'`. Badges de inasistencias (ámbar) y Bloqueado/Activo. Bloquear/desbloquear con modal de confirmación; actualiza el item localmente sin refetch.
-- `Calendario.jsx` extendido con prop `permitirPasados` (false por defecto) para que el admin pueda consultar fechas pasadas.
-- Botón del nombre en cabecera → `/mi-cuenta` (reutiliza `FormularioPerfil` y `FormularioPassword` ya implementados).
+### URLs en producción
+- **Frontend**: `https://rmolinastyle.com` (+ `https://www.rmolinastyle.com` → **redirige** al apex, lo gestiona Render automáticamente).
+- **Backend/API**: `https://api.rmolinastyle.com`
+- URLs internas de Render (los nombres `rm-backend`/`rm-frontend` estaban ocupados globalmente → Render añadió sufijo):
+  - Backend: `https://rm-backend-z7zb.onrender.com`
+  - Frontend: `https://rm-frontend-4wr6.onrender.com`
 
-### Cambios de backend acompañando a Fase D
+### Dominio y DNS
+- Dominio **`rmolinastyle.com`** registrado en **Cloudflare Registrar** (~10,46 $/año, a coste, sin markup en renovación, WHOIS privacy incluida, auto-renew activado). A nombre de Cristian.
+- DNS en Cloudflare: **3 registros CNAME, los tres en "DNS only" (nube gris)**:
+  - `api` → `rm-backend-z7zb.onrender.com`
+  - `www` → `rm-frontend-4wr6.onrender.com`
+  - `@` (apex, vía CNAME flattening de Cloudflare) → `rm-frontend-4wr6.onrender.com`
+- HTTPS emitido por Render (Let's Encrypt) para los 3 dominios.
 
-- `ServicioUpdate` acepta ahora `activo: bool | None` → permite reactivar servicios vía `PUT`.
-- `GET /citas` admite parámetro opcional `?fecha=YYYY-MM-DD` → filtra agenda por día.
-- Test `test_reactivar_servicio_via_put` y `test_listar_citas_filtro_fecha` añadidos.
+### render.yaml (Blueprint) — estado actual
+- 3 piezas: `rm-backend` (web, Python, **Starter**, Frankfurt), `rm-frontend` (**static site**, Frankfurt), `rm-postgres` (**basic-256mb**, Frankfurt, `ipAllowList: []` → solo conexiones internas).
+- Pre-deploy: `alembic upgrade head && python seed.py`.
+- Bloques `domains:` **activos** (backend: `api.rmolinastyle.com`; frontend: `rmolinastyle.com` + `www.rmolinastyle.com`).
+- `VITE_API_URL = https://api.rmolinastyle.com` (build-time).
+- `ALLOWED_ORIGINS = ["https://rmolinastyle.com","https://www.rmolinastyle.com"]`.
+- Comentarios en el archivo documentan los valores `.onrender.com` de la fase intermedia (por si hubiera que volver atrás).
+- Variables secretas (`ADMIN1_*`, `ADMIN2_*`, `TELEGRAM_*`) introducidas a mano en el panel (`sync: false`). `SECRET_KEY` autogenerada (`generateValue`). `DATABASE_URL` inyectada desde la BD (normalizada a `postgresql+psycopg://` por el `field_validator` de `config.py`).
 
-### Correcciones frontend (pulido)
+### Cómo se hizo (historia del despliegue)
+1. Primer deploy en URLs `.onrender.com` (sin dominio) para separar "¿falla el código?" de "¿falla el DNS?".
+2. Los nombres `rm-backend`/`rm-frontend` estaban ocupados → se corrigieron `VITE_API_URL` y `ALLOWED_ORIGINS` con las URLs reales (con sufijo `-z7zb` / `-4wr6`).
+3. Smoke test completo en verde sobre `.onrender.com`.
+4. El peluquero confirma que quiere dominio propio → compra de `rmolinastyle.com` en Cloudflare.
+5. Se activan los `domains:` en `render.yaml` → 3 CNAME en Cloudflare → Render verifica + emite HTTPS.
+6. Se cambian las dos variables al dominio propio → app viva en `rmolinastyle.com`.
 
-- **Calendario — bug "hoy" en columna errónea**: normalizado `hoy` a medianoche local (`new Date(y, m, d)` en lugar de `new Date()`) y cambiado `key` de celdas de `toISOString()` (UTC, desfasa en UTC+2) a componentes locales `${y}-${m+1}-${d}`. Elimina el desplazamiento de columna en horario de verano.
-- **Iconos SVG inline**: sustituidos los emojis 📅 (botón calendario en TabAgenda) y 🙈/👁 (ver/ocultar contraseña en Login y FormularioPassword) por SVG `currentColor` sin librería. Respetan modo claro/oscuro y escalan con el tema.
-- **Login — distinguir 5xx de 401**: añadido `else if (status >= 500)` → "Error en el servidor, inténtalo más tarde"; el 401 sigue mostrando "Email o contraseña incorrectos".
+### Coste real
+~**17,50 $/mes** (backend Starter ~7 $ + Postgres basic-256mb ~7 $ + extras de almacenamiento/ancho de banda; frontend estático **gratis**). Dominio ~10 €/año aparte.
 
-### Múltiples tramos por día (jornada partida)
+### Verificación final — TODO EN VERDE ✅
+Registro + login cliente, login admin (`admin@`), reservar, cancelar, aviso Telegram, recargar en `/admin` y `/mi-cuenta` sin 404, responsive en móvil. Todo OK sobre el dominio propio.
+⚠️ **Excepción**: el login del peluquero (`peluquero@`) da error con su contraseña (ver Pendientes).
 
-- Eliminado `UniqueConstraint("dia_semana")` de `HorarioPeluquero`; migración `c70da527d6e9` aplica el `DROP CONSTRAINT` en la BD.
-- `POST /horario` y `PUT /horario/{id}` validan solapamiento manualmente con `_validar_sin_solapamiento` (409 si los rangos se cruzan).
-- `GET /disponibilidad` itera sobre **todos** los tramos del día (`.all()` + loop) y acumula los huecos disponibles de cada bloque.
-- 3 tests nuevos en `test_horario.py`: tramos no solapados OK, solapamiento exacto rechazado, solapamiento parcial rechazado, disponibilidad con dos bloques.
+---
 
-## Despliegue en Render — CONFIGURADO (pendiente de ejecutar)
+## Pendientes (antes de entregar al peluquero / cierre)
 
-Archivo `render.yaml` (Blueprint) en la raíz del repo. Define las 3 piezas: backend, frontend, PostgreSQL.
-
-### Arquitectura
-- **Backend** (`rm-backend`): Web Service Python, región Frankfurt, plan Starter.
-  - Comando de arranque: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-  - Pre-deploy: `alembic upgrade head && python seed.py`
-  - Dominio: `api.rmolinastyle.com`
-- **Frontend** (`rm-frontend`): Static Site, región Frankfurt.
-  - Build: `npm install && npm run build` → publica `dist/`
-  - Rewrite SPA: `/* → /index.html` (evita 404 al recargar en rutas como `/admin`)
-  - Dominio: `rmolinastyle.com` + `www.rmolinastyle.com`
-- **PostgreSQL** (`rm-postgres`): plan `basic-256mb`, Frankfurt, `ipAllowList: []` (solo conexiones internas).
-
-### Variables a configurar manualmente en el panel de Render (secretas, `sync: false`)
-```
-ADMIN1_EMAIL       → admin@rmolinastyle.com
-ADMIN1_PASSWORD    → contraseña fuerte (solo se usa al crear el admin; deploys posteriores no la tocan)
-ADMIN1_NOMBRE      → nombre del desarrollador
-ADMIN1_TELEFONO    → teléfono
-ADMIN2_EMAIL       → peluquero@rmolinastyle.com
-ADMIN2_PASSWORD    → contraseña fuerte
-ADMIN2_NOMBRE      → nombre del peluquero
-ADMIN2_TELEFONO    → teléfono
-TELEGRAM_BOT_TOKEN → token del bot de Telegram
-TELEGRAM_CHAT_ID   → chat id del peluquero
-```
-`SECRET_KEY` la genera Render automáticamente (`generateValue: true`). `DATABASE_URL` la inyecta Render desde la BD gestionada.
-
-### Normalización de DATABASE_URL
-Render inyecta `postgres://`, pero psycopg3 necesita `postgresql+psycopg://`. `config.py` tiene un `field_validator` que normaliza el esquema automáticamente al arrancar (también aplica a Alembic).
-
-### seed.py — comportamiento CREATE-IF-MISSING
-- Si el admin **no existe** → lo crea con todos los datos (incluida la contraseña).
-- Si el admin **ya existe** → solo garantiza `rol=admin` y `bloqueado=False`. **Nunca toca** `password_hash`, `nombre_completo` ni `telefono` (campos editables desde "Mi cuenta").
-
-### Redirección www → apex
-No se puede declarar en `render.yaml` (las rutas del static site son path-based). Configurar **después del primer deploy** en el panel de Render (Custom Domains → Redirect) o con una regla de Cloudflare si el DNS está ahí.
-
-### Checklist del primer deploy
-1. Crear un "Blueprint" en Render apuntando al repositorio → usa `render.yaml`.
-2. Introducir las variables secretas en el panel (ver lista arriba).
-3. Esperar a que el pre-deploy (`alembic upgrade head && python seed.py`) complete.
-4. Verificar: `GET https://api.rmolinastyle.com/health → {"status":"ok"}`.
-5. Verificar: `https://rmolinastyle.com` carga y `/admin` no da 404 al recargar.
-6. Configurar DNS del dominio apuntando a Render + redirección www → apex.
+1. **Arreglar el login del peluquero** (`peluquero@rmolinastyle.com`): da error con su contraseña. **Causa probable**: la cuenta se creó en el primer deploy con una contraseña distinta (typo en `ADMIN2_PASSWORD`), y como el seed es CREATE-IF-MISSING, **no la actualiza** en deploys posteriores.
+   - **Descartar primero**: email exacto y en minúsculas; comparar el `ADMIN2_PASSWORD` real de Render con lo que se teclea; descartar 429 (rate limit, esperar unos minutos).
+   - **Si es mismatch real**: (a) poner `ADMIN2_PASSWORD` correcto en Render; (b) borrar la fila → `DELETE FROM usuarios WHERE email='peluquero@rmolinastyle.com';`; (c) redeploy o `python seed.py` en la Shell del backend → la recrea con la contraseña correcta.
+   - ⚠️ La BD es `ipAllowList: []` (solo interna): usar la **Shell de `rm-backend`** o **allowlistar la IP temporalmente**. **NO** modificar `seed.py` para sobrescribir contraseñas (reintroduce el bug de clobbering).
+   - Opción: mini-script `scripts/reset_admin.py` que haga borrado + reseed de un admin de forma segura, para ejecutar en la Shell.
+2. **Reiniciar horarios y eliminar las citas de prueba** antes de entregar.
+   - ⚠️ La cuenta de cliente registrada en las pruebas **NO se borra**: es la **cuenta personal de Cristian** para pedir cita.
+   - Los tramos de horario se borran desde el panel admin (TabHorario). Las citas de prueba: desde la BD (mismo acceso que el punto 1) o cancelándolas.
+3. **Configurar servicios y horario reales** con el peluquero (precios, duraciones, tramos reales, jornada partida si aplica).
+4. **Confirmar Telegram al peluquero**: que haya hecho `/start` al bot, o no se le entregan los avisos.
+5. **Cron Job de purga RGPD** (`scripts/purga_citas.py`) en Render — pendiente de programar (diario/semanal). No está en `render.yaml`.
+6. **Observabilidad: Sentry y BetterStack** — pendiente de integrar. Van DESPUÉS, sin afectar al despliegue base (solo alguna variable de entorno / config en su panel).
 
 ---
 
@@ -211,11 +153,16 @@ No se puede declarar en `render.yaml` (las rutas del static site son path-based)
 
 - **JavaScript** (no TypeScript). **axios** con interceptores 401/409. Token JWT en localStorage. Rol vía `/usuarios/me`.
 - **CSS Modules + variables CSS**. Sin frameworks de UI ni librerías de fechas pesadas.
-- En dev, las llamadas a la API pasan por el **proxy de Vite** (`/api`).
+- En dev, las llamadas a la API pasan por el **proxy de Vite** (`/api`); en producción `VITE_API_URL` es la URL absoluta del backend.
 
 ---
 
-## Siguiente paso
+## Herramienta de desarrollo — Compartir en local (Cloudflare Tunnel)
 
-1. **Smoke test manual** de la Fase D (ver checklist en CLAUDE.md plan — D1 a D4 + móvil 375 px).
-2. **Despliegue en Render**: backend (Web Service), PostgreSQL gestionada, frontend (static site), variables de entorno (`TELEGRAM_*`, `RETENCION_MESES`, seed admins con contraseñas fuertes), Cron Job para la purga.
+- Un solo túnel con proxy de Vite (`/api` → `localhost:8000`), `allowedHosts` con `.trycloudflare.com`. Comando: `cloudflared tunnel --url http://localhost:5173`. Si da errores QUIC: `--protocol http2` o desactivar la VPN. Solo dev; parar el túnel al terminar.
+
+---
+
+## Siguiente paso inmediato
+
+Resolver el **login del peluquero** (punto 1 de Pendientes) y la **limpieza de horarios/citas de prueba** (punto 2), que requieren acceso a la BD interna. Luego configurar servicios/horario reales y confirmar Telegram. Sentry/BetterStack y el Cron de purga, después.
