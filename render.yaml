@@ -19,7 +19,7 @@ services:
         value: production
       # FASE ONRENDER → dominio propio: cambiar a '["https://rmolinastyle.com","https://www.rmolinastyle.com"]'
       - key: ALLOWED_ORIGINS
-        value: '["https://rm-frontend.onrender.com"]'
+        value: '["https://rm-frontend-4wr6.onrender.com"]'
       - key: ALGORITHM
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
@@ -75,7 +75,7 @@ services:
     envVars:
       # FASE ONRENDER → dominio propio: cambiar a https://api.rmolinastyle.com
       - key: VITE_API_URL
-        value: https://rm-backend.onrender.com
+        value: https://rm-backend-z7zb.onrender.com
 
 databases:
   - name: rm-postgres
