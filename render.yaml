@@ -11,8 +11,8 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     # ── Dominio propio (descomentar cuando rmolinastyle.com esté verificado en Render) ──
-    # domains:
-    #   - api.rmolinastyle.com
+    domains:
+      - api.rmolinastyle.com
     envVars:
       # ── No secretas: declaradas aquí (van al repo) ───────────────────────────
       - key: ENVIRONMENT
@@ -64,9 +64,9 @@ services:
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     # ── Dominio propio (descomentar cuando rmolinastyle.com esté verificado en Render) ──
-    # domains:
-    #   - rmolinastyle.com
-    #   - www.rmolinastyle.com
+    domains:
+      - rmolinastyle.com
+      - www.rmolinastyle.com
     routes:
       # SPA: cualquier ruta que no sea un archivo estático devuelve index.html
       - type: rewrite
