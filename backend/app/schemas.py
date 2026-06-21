@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
+from app.constants import FRANJA_MINUTOS
 from app.models import EstadoCita
 
 # Letras latinas con tildes/acentos, ñ y caracteres europeos comunes, más espacio, guión y apóstrofo
@@ -137,9 +138,9 @@ class ServicioCreate(BaseModel):
 
     @field_validator("duracion_minutos")
     @classmethod
-    def multiplo_de_30(cls, v: int) -> int:
-        if v % 30 != 0:
-            raise ValueError("duracion_minutos debe ser múltiplo de 30")
+    def multiplo_de_franja(cls, v: int) -> int:
+        if v % FRANJA_MINUTOS != 0:
+            raise ValueError(f"duracion_minutos debe ser múltiplo de {FRANJA_MINUTOS}")
         return v
 
 
@@ -153,9 +154,9 @@ class ServicioUpdate(BaseModel):
 
     @field_validator("duracion_minutos")
     @classmethod
-    def multiplo_de_30(cls, v: int | None) -> int | None:
-        if v is not None and v % 30 != 0:
-            raise ValueError("duracion_minutos debe ser múltiplo de 30")
+    def multiplo_de_franja(cls, v: int | None) -> int | None:
+        if v is not None and v % FRANJA_MINUTOS != 0:
+            raise ValueError(f"duracion_minutos debe ser múltiplo de {FRANJA_MINUTOS}")
         return v
 
 
@@ -227,8 +228,12 @@ class CitaCreate(BaseModel):
     @field_validator("hora_inicio")
     @classmethod
     def hora_en_franja(cls, v: time) -> time:
-        if v.minute not in {0, 30} or v.second != 0 or v.microsecond != 0:
-            raise ValueError("hora_inicio debe estar en punto (:00) o y media (:30), sin segundos")
+        _minutos_validos = {i * FRANJA_MINUTOS for i in range(60 // FRANJA_MINUTOS)}
+        if v.minute not in _minutos_validos or v.second != 0 or v.microsecond != 0:
+            raise ValueError(
+                f"hora_inicio debe estar en múltiplo de {FRANJA_MINUTOS} min "
+                f"({', '.join(f':{m:02d}' for m in sorted(_minutos_validos))}), sin segundos"
+            )
         return v
 
 

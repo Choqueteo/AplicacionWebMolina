@@ -43,27 +43,39 @@ Dependencias de seguridad: `get_usuario_actual`, `solo_admin`.
 
 ---
 
-## Modelo de datos (basado en FRANJAS de 30 min)
+## Modelo de datos (basado en FRANJAS de 15 min)
 
 - **Usuario**: `id`, `email` (único), `password_hash`, `telefono`, `nombre_completo`, `rol` ('admin' | 'cliente'), `bloqueado` (bool, def. false).
-- **Servicio**: `id`, `nombre`, `duracion_minutos` (múltiplo de 30), `precio`, `activo` (bool, borrado lógico).
-- **HorarioPeluquero**: tramos de apertura por día (admite varios tramos/día, p. ej. 9:00–14:00 y 17:00–21:00). Validación de solapamiento en el router antes del commit.
+- **Servicio**: `id`, `nombre`, `duracion_minutos` (**múltiplo de 15**), `precio`, `activo` (bool, borrado lógico).
+- **HorarioPeluquero**: tramos de apertura por día (admite varios tramos/día, p. ej. 9:00–14:00 y 17:00–21:00).
 - **Cita**: `id`, `cliente_id`, `servicio_id`, `fecha`, `hora_inicio`, `hora_fin`, `estado` ('activa' | 'cancelada' | 'no_asistida').
-- **FranjaOcupada**: `id`, `cita_id` (FK), `fecha`, `hora`. Ocupación real; fuente de verdad de la disponibilidad.
+- **FranjaOcupada**: `id`, `cita_id` (FK), `fecha`, `hora`. Ocupación real; fuente de verdad de la disponibilidad. Los valores de `hora` caen en :00/:15/:30/:45.
 
-Corte = 30 min = 1 franja. Tinte/mechas = 60 min = 2 franjas (siempre, sin reposo).
+**Tamaño de franja = 15 min**, centralizado en UNA constante única (`FRANJA_MINUTOS = 15`) usada en TODA la lógica de franjas — nunca hardcodear 15 ni 30 por el código. Nº de franjas de un servicio = `duracion_minutos / FRANJA_MINUTOS`.
+
+Ejemplos: barba 15 min = 1 franja · corte 30 min = 2 franjas · corte+barba 45 min = 3 franjas · tinte 60 min = 4 franjas · servicio largo 75 min (1 h 15) = 5 franjas. (Sin reposo entre franjas.)
 
 ---
 
 ## REGLA CRÍTICA: no reservas solapadas
 
-`UNIQUE (fecha, hora)` en `FranjaOcupada`: cada franja pertenece a una sola cita. Crear cita = insertar la Cita + sus N franjas en UNA transacción; si una franja ya existe -> IntegrityError -> rollback -> `409 Conflict` -> el frontend pide recargar. Concurrencia resuelta a nivel de BD.
+`UNIQUE (fecha, hora)` en `FranjaOcupada`: cada franja pertenece a una sola cita. Crear cita = insertar la Cita + sus N franjas (de 15 min) en UNA transacción; si una franja ya existe -> IntegrityError -> rollback -> `409 Conflict` -> el frontend pide recargar. Concurrencia resuelta a nivel de BD. (El esquema de la BD no cambia con el tamaño de franja: solo cambia la granularidad de los valores de `hora`.)
 
 ---
 
 ## Disponibilidad
 
-`GET /disponibilidad?fecha=&servicio_id=` devuelve SOLO las horas de inicio válidas para ese servicio: las N franjas consecutivas libres y dentro de un mismo tramo de apertura. Un tinte (60 min) solo ofrece inicios donde caben 2 franjas. Si la fecha es hoy, no se ofrecen horas pasadas. El frontend solo muestra esas horas reservables.
+`GET /disponibilidad?fecha=&servicio_id=` devuelve SOLO las horas de inicio válidas para ese servicio: las **N franjas de 15 min consecutivas** libres y dentro de un mismo tramo de apertura (N = `duracion_minutos / FRANJA_MINUTOS`). Un servicio de 45 min solo ofrece inicios donde caben 3 franjas; uno de 60 min, donde caben 4. Si la fecha es hoy, no se ofrecen horas pasadas. Solo se ofrecen fechas **dentro de la ventana de reserva** (ver abajo); fuera de ella, sin horas. El frontend solo muestra esas horas reservables.
+
+---
+
+## Ventana de reserva (horizonte de días)
+
+Un cliente solo puede reservar dentro de una ventana **rodante** de como máximo **`DIAS_MAX_RESERVA = 30`** días naturales desde hoy: rango **[hoy, hoy + 30 días]** (ambos inclusive). "Hoy" se calcula SIEMPRE en **Europe/Madrid**. Como se computa en cada petición, la ventana se desplaza sola con el paso de los días (sin cron). Objetivo: evitar reservas en fechas absurdamente lejanas.
+
+- Constante única/configurable (`DIAS_MAX_RESERVA`), definida en el backend.
+- **Backend (defensa real)**: `GET /disponibilidad` devuelve `horas_disponibles` vacío para fechas fuera de la ventana (no error). `POST /citas` rechaza con **422** (mensaje claro) si la fecha está fuera de `[hoy, hoy+DIAS_MAX_RESERVA]`, igual que ya rechaza fechas pasadas/inválidas.
+- **Frontend**: el calendario de Reservar deshabilita los días fuera de la ventana (los pasados Y los posteriores a hoy+30), igual que ya hace con pasados/cerrados. Construir fechas con componentes locales del `Date` (nunca `toISOString()`). Mantener el valor 30 en sintonía con el backend.
 
 ---
 
@@ -76,29 +88,10 @@ Corte = 30 min = 1 franja. Tinte/mechas = 60 min = 2 franjas (siempre, sin repos
 ## Inasistencias (no-show)
 
 - `PATCH /citas/{id}/no-asistida`, solo admin: marca una cita PASADA y 'activa' como 'no_asistida'. No futuras, no canceladas, no ya marcadas. La marca es manual; la app no puede saber quién asistió.
-- Contador de inasistencias: campo **almacenado** `inasistencias: int` (default 0) en `Usuario`. Se incrementa en la misma transacción que marca la cita. Visible para el admin. La migración `c7e4a1d9f2b3` backfilla el histórico existente al añadir la columna.
+- Contador de inasistencias por cliente: visible para el admin (campo `Usuario.inasistencias`).
 - Veto: campo `bloqueado` en Usuario, controlado por el admin. Si `bloqueado`, `POST /citas` devuelve 403. El cobro de inasistencias es presencial.
 
 ---
-
-## Purga de citas antiguas (RGPD — minimización de datos)
-
-- Script `backend/scripts/purga_citas.py`: borra citas cuya `fecha` sea anterior a la ventana de retención junto con sus `FranjaOcupada`. Idempotente.
-- Ventana configurable: variable de entorno `RETENCION_MESES` (default 24 meses en `settings.retencion_meses`).
-- Modo dry-run: `python scripts/purga_citas.py --dry-run` — cuenta sin borrar.
-- Borrado real en transacción: primero `FranjaOcupada WHERE cita_id IN (...)`, luego `Cita`.
-- El campo `inasistencias` almacenado garantiza que purgar citas `no_asistida` no pierde el histórico de vetos.
-- Pensado para ejecutarse como **Render Cron Job** (diario o semanal). La configuración del cron se hace al desplegar en Render.
-
----
-
-## Notificaciones al peluquero (Telegram)
-
-El peluquero recibe un aviso por **Telegram** cuando un cliente **reserva** (`POST /citas` con éxito) o **cancela** una cita (`PATCH /citas/{id}/cancelar`, solo si cancela el cliente; no si cancela el propio admin).
-- El envío ocurre **tras confirmar la transacción** en la BD y en **segundo plano** (`BackgroundTasks`). Si falla o tarda, la operación se completa igual: el aviso nunca bloquea ni ralentiza la reserva/cancelación; los fallos se capturan y registran (sin volcar datos personales ni el token en los logs).
-- Mensaje **conciso y suficiente**: nombre del cliente, teléfono, servicio, fecha y hora, y la acción. Minimización de datos (RGPD).
-- `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` (del peluquero) en variables de entorno, nunca en el código. Si faltan, la app funciona igual (no envía; deja un aviso en el log).
-- Es una notificación de salida hacia una sola persona, no un chat bidireccional.
 
 ## Estados de cita y su VISUALIZACIÓN (derivada — no hay paso de "confirmar")
 
@@ -120,20 +113,6 @@ NO usar nunca la etiqueta "Confirmada".
 
 ---
 
-## Notificaciones al peluquero (Telegram)
-
-- Bot de Telegram → chat personal del peluquero. Solo salida (no responder al bot).
-- Módulo: `app/notificaciones/telegram.py`, función `enviar_aviso_peluquero(mensaje: str)`.
-- Variables de entorno: `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`. Si alguna falta → warning en log y no envía (no rompe nada). Nunca en el código.
-- Disparadores con `BackgroundTasks` (después del commit, sin bloquear la respuesta al cliente):
-  - `POST /citas` éxito → "Nueva reserva" con nombre, teléfono, servicio, fecha y hora.
-  - `PATCH /citas/{id}/cancelar` éxito **y quien cancela es el cliente** → "Cita cancelada por el cliente". Si cancela un admin → no se envía (ya lo sabe).
-- Cualquier excepción en el envío se captura con `try/except Exception` y se registra como warning sin datos personales ni el token. La operación principal nunca falla por esto.
-- `httpx.post` síncrono, timeout 5 s. Starlette lo ejecuta en thread pool (no bloquea el event loop).
-- Tests: mockear `enviar_aviso_peluquero` en `app.routers.citas` para tests de endpoint; mockear `httpx.post` dentro del módulo para tests unitarios de la función.
-
----
-
 ## Seguridad (OWASP Top 10:2025)
 
 - Control de acceso por objeto en cada endpoint (anti-IDOR). Panel admin protegido con `solo_admin` en el backend.
@@ -150,13 +129,14 @@ NO usar nunca la etiqueta "Confirmada".
 - **Mobile-first y responsiva** (uso principal en móvil).
 - AuthContext (login/logout/usuario+rol). Rutas protegidas por rol (público / cliente / admin). Cliente HTTP centralizado con Bearer automático y manejo central de 401 (cerrar sesión -> login) y 409 ("ese hueco se acaba de ocupar, recarga").
 - **Dos dashboards distintos**: cliente y admin.
-- Pantallas: Login, Registro (nombre, apellidos, teléfono, email, contraseña), Reservar (mostrar solo horas válidas del servicio), Mis citas (con cancelar), Panel admin (agenda con estados derivados, marcar inasistencia, gestión de servicios y horario, bloquear clientes).
+- Pantallas: Login, Registro (nombre, apellidos, teléfono, email, contraseña), Reservar (mostrar solo horas válidas del servicio; **calendario limitado a la ventana [hoy, hoy+30 días]**), Mis citas (con cancelar), Panel admin (agenda con estados derivados, marcar inasistencia, gestión de servicios y horario, bloquear clientes).
+- **Formateo de duración**: las duraciones no son siempre múltiplos de hora (15, 45, 75…). Mostrarlas bien: "15 min", "45 min", "1 h", "1 h 15 min".
 
 ### Diseño visual (estética premium, paleta de la marca RM)
 - Estética elegante/premium en **negro y oro**, con **modo claro y oscuro**.
-- **Logo**: usar la imagen del logo RM (no texto). Necesita una versión con **fondo transparente** (PNG/SVG) para el modo claro.
-- Tipografía con un toque serif para la marca/títulos; sans para el resto.
-- **Micro-interacciones**: transiciones suaves, `:hover` en botones, animaciones de entrada sencillas. Con mesura y cuidando el rendimiento en móvil.
+- **Logo**: usar la imagen del logo RM (no texto). Versión con **fondo transparente** (PNG/SVG). Favicon: monograma "RM" dorado sobre fondo oscuro (set completo SVG + PNG + apple-touch-icon + site.webmanifest).
+- Tipografía con un toque serif para la marca/títulos (Cormorant Garamond); sans para el resto (Inter). Self-hosted (RGPD).
+- **Micro-interacciones**: transiciones suaves, `:hover` en botones, animaciones de entrada sencillas. Con mesura y cuidando el rendimiento en móvil; respetar `prefers-reduced-motion`.
 
 Paleta de referencia:
 - Oscuro: fondo #0B0B0C, superficie #161618, texto crema #F2ECDD, texto sec. #9A958A.

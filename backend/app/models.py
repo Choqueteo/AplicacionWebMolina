@@ -2,6 +2,7 @@ import enum
 from datetime import date, time
 from decimal import Decimal
 
+from app.constants import FRANJA_MINUTOS
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -63,7 +64,7 @@ class Servicio(Base):
     __tablename__ = "servicios"
     __table_args__ = (
         CheckConstraint(
-            "duracion_minutos > 0 AND mod(duracion_minutos, 30) = 0",
+            f"duracion_minutos > 0 AND mod(duracion_minutos, {FRANJA_MINUTOS}) = 0",
             name="ck_servicio_duracion",
         ),
     )

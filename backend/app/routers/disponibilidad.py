@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.constants import DIAS_MAX_RESERVA, FRANJA_MINUTOS
 from app.database import get_db
 from app.dependencies import get_usuario_actual
 from app.models import FranjaOcupada, HorarioPeluquero, Servicio, Usuario
@@ -28,8 +29,7 @@ def _calcular_disponibles(
     `apertura` y `cierre` son datetime.time convertidos a datetime (misma fecha base).
     `ahora_madrid` se usa para filtrar horas pasadas cuando la fecha consultada es hoy.
     """
-    from datetime import date as date_type
-    N = duracion_minutos // 30
+    N = duracion_minutos // FRANJA_MINUTOS
     disponibles = []
 
     # Último inicio válido: cierre - duracion_minutos
@@ -41,19 +41,19 @@ def _calcular_disponibles(
 
         # Filtrar slots pasados cuando la fecha es hoy
         if ahora_madrid is not None and franja_inicio <= ahora_madrid:
-            current += timedelta(minutes=30)
+            current += timedelta(minutes=FRANJA_MINUTOS)
             continue
 
         # Comprobar que las N franjas consecutivas están libres
         all_free = all(
-            (current + timedelta(minutes=30 * i)).time() not in ocupadas
+            (current + timedelta(minutes=FRANJA_MINUTOS * i)).time() not in ocupadas
             for i in range(N)
         )
 
         if all_free:
             disponibles.append(franja_inicio)
 
-        current += timedelta(minutes=30)
+        current += timedelta(minutes=FRANJA_MINUTOS)
 
     return disponibles
 
@@ -75,8 +75,8 @@ def consultar_disponibilidad(
     now_madrid = datetime.now(_MADRID)
     today_madrid = now_madrid.date()
 
-    # Fecha pasada → sin disponibilidad
-    if fecha < today_madrid:
+    # Fecha fuera de ventana de reserva → sin disponibilidad (no error)
+    if fecha < today_madrid or fecha > today_madrid + timedelta(days=DIAS_MAX_RESERVA):
         return DisponibilidadRead(fecha=fecha, servicio_id=servicio_id, horas_disponibles=[])
 
     # Buscar todos los tramos del día de la semana

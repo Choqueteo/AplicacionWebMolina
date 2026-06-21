@@ -3,7 +3,7 @@ import client from '../../api/client'
 import Spinner from '../ui/Spinner'
 import styles from './TabServicios.module.css'
 
-const DURACIONES = [30, 60, 90, 120]
+const DURACIONES = [15, 30, 45, 60, 75]
 
 function formatDuracion(min) {
   if (min < 60) return `${min} min`
@@ -28,7 +28,7 @@ function extraerError422(err) {
 
 function FormServicio({ inicial, onGuardar, onCancelar }) {
   const [nombre,    setNombre]    = useState(inicial?.nombre           ?? '')
-  const [duracion,  setDuracion]  = useState(inicial?.duracion_minutos ?? 30)
+  const [duracion,  setDuracion]  = useState(inicial?.duracion_minutos ?? 15)
   const [precio,    setPrecio]    = useState(inicial?.precio           ?? '')
   const [errores,   setErrores]   = useState({})
   const [guardando, setGuardando] = useState(false)

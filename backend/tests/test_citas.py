@@ -1,7 +1,11 @@
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
-from app.models import Cita, EstadoCita, FranjaOcupada, Rol, Usuario
+from app.constants import DIAS_MAX_RESERVA
+from app.models import Cita, EstadoCita, FranjaOcupada, HorarioPeluquero, Rol, Usuario
 from app.security import create_access_token, hash_password
+
+_MADRID = ZoneInfo("Europe/Madrid")
 
 
 def _auth(token):
@@ -445,3 +449,126 @@ def test_cancelar_libera_franja_para_nueva_reserva(client, db_session, servicio_
     # C2 reserva el mismo slot — debe funcionar (franja liberada)
     r = client.post("/citas", json=_payload(servicio_corte.id, fecha_test, "10:00:00"), headers=_auth(t2))
     assert r.status_code == 201
+
+
+# ---------------------------------------------------------------------------
+# Servicios de 15 y 45 min
+# ---------------------------------------------------------------------------
+
+def test_reserva_15min_exitosa(client, cliente_token, servicio_barba, horario_dia, fecha_test, db_session):
+    """Barba (15 min): hora_fin = hora_inicio + 15, crea 1 FranjaOcupada."""
+    r = client.post("/citas", json=_payload(servicio_barba.id, fecha_test), headers=_auth(cliente_token))
+    assert r.status_code == 201
+    data = r.json()
+    assert data["hora_inicio"] == "10:00:00"
+    assert data["hora_fin"] == "10:15:00"
+    franjas = db_session.query(FranjaOcupada).filter_by(cita_id=data["id"]).all()
+    assert len(franjas) == 1
+    assert franjas[0].hora == time(10, 0)
+
+
+def test_reserva_45min_exitosa(client, cliente_token, servicio_corteybarba, horario_dia, fecha_test, db_session):
+    """Corte y barba (45 min): hora_fin = 10:45, crea 3 FranjaOcupada (10:00, 10:15, 10:30)."""
+    r = client.post("/citas", json=_payload(servicio_corteybarba.id, fecha_test), headers=_auth(cliente_token))
+    assert r.status_code == 201
+    data = r.json()
+    assert data["hora_inicio"] == "10:00:00"
+    assert data["hora_fin"] == "10:45:00"
+    franjas = sorted(
+        db_session.query(FranjaOcupada).filter_by(cita_id=data["id"]).all(),
+        key=lambda f: f.hora,
+    )
+    assert len(franjas) == 3
+    assert franjas[0].hora == time(10, 0)
+    assert franjas[1].hora == time(10, 15)
+    assert franjas[2].hora == time(10, 30)
+
+
+def test_reserva_hora_inicio_cuarto(client, cliente_token, servicio_barba, horario_dia, fecha_test):
+    """hora_inicio en :15 ahora es válido con franjas de 15 min → 201."""
+    r = client.post(
+        "/citas",
+        json=_payload(servicio_barba.id, fecha_test, hora="10:15:00"),
+        headers=_auth(cliente_token),
+    )
+    assert r.status_code == 201
+    assert r.json()["hora_inicio"] == "10:15:00"
+    assert r.json()["hora_fin"] == "10:30:00"
+
+
+def test_solapamiento_15min(client, db_session, servicio_barba, servicio_corte, horario_dia, fecha_test):
+    """
+    Franja 10:15 ocupada por barba (15 min).
+    Intento de corte (30 min) a las 10:00 necesita 10:00 y 10:15 → 10:15 ocupada → 409.
+    """
+    c1 = Usuario(email="c1s@test.com", password_hash=hash_password("x"),
+                 telefono="600000021", nombre_completo="C1", rol=Rol.cliente)
+    c2 = Usuario(email="c2s@test.com", password_hash=hash_password("x"),
+                 telefono="600000022", nombre_completo="C2", rol=Rol.cliente)
+    db_session.add_all([c1, c2])
+    db_session.commit()
+    db_session.refresh(c1)
+    db_session.refresh(c2)
+
+    t1 = create_access_token(c1.id, c1.rol.value)
+    t2 = create_access_token(c2.id, c2.rol.value)
+
+    # C1 reserva barba a las 10:15 → ocupa franja 10:15
+    r1 = client.post("/citas", json=_payload(servicio_barba.id, fecha_test, "10:15:00"), headers=_auth(t1))
+    assert r1.status_code == 201
+
+    # C2 intenta corte (30 min) a las 10:00 → necesita 10:00 y 10:15; 10:15 ocupada → 409
+    r2 = client.post("/citas", json=_payload(servicio_corte.id, fecha_test, "10:00:00"), headers=_auth(t2))
+    assert r2.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# Ventana de reserva [hoy, hoy+DIAS_MAX_RESERVA]
+# ---------------------------------------------------------------------------
+
+def test_reserva_limite_30_ok(client, cliente_token, servicio_corte, db_session):
+    """Fecha = hoy+30 (límite inclusive) con horario → 201."""
+    hoy_madrid = datetime.now(_MADRID).date()
+    fecha_limite = hoy_madrid + timedelta(days=DIAS_MAX_RESERVA)
+
+    h = HorarioPeluquero(
+        dia_semana=fecha_limite.weekday(),
+        hora_apertura=time(9, 0),
+        hora_cierre=time(18, 0),
+    )
+    db_session.add(h)
+    db_session.commit()
+
+    r = client.post(
+        "/citas",
+        json=_payload(servicio_corte.id, fecha_limite),
+        headers=_auth(cliente_token),
+    )
+    assert r.status_code == 201
+
+
+def test_reserva_limite_31_422(client, cliente_token, servicio_corte):
+    """Fecha = hoy+31 (fuera de ventana) → 422 con mensaje sobre antelación."""
+    hoy_madrid = datetime.now(_MADRID).date()
+    fecha_fuera = hoy_madrid + timedelta(days=DIAS_MAX_RESERVA + 1)
+
+    r = client.post(
+        "/citas",
+        json=_payload(servicio_corte.id, fecha_fuera),
+        headers=_auth(cliente_token),
+    )
+    assert r.status_code == 422
+    assert "antelación" in r.json()["detail"]
+
+
+def test_reserva_fecha_lejana_422(client, cliente_token, servicio_corte):
+    """Fecha = hoy+365 (muy lejana) → 422."""
+    hoy_madrid = datetime.now(_MADRID).date()
+    fecha_lejana = hoy_madrid + timedelta(days=365)
+
+    r = client.post(
+        "/citas",
+        json=_payload(servicio_corte.id, fecha_lejana),
+        headers=_auth(cliente_token),
+    )
+    assert r.status_code == 422

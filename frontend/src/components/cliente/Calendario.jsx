@@ -18,6 +18,15 @@ function esPasado(date, hoy) {
   return d < h
 }
 
+function esFuturaExcedida(date, hoy, diasMax = 30) {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const limite = new Date(hoy)
+  limite.setHours(0, 0, 0, 0)
+  limite.setDate(limite.getDate() + diasMax)
+  return d > limite
+}
+
 // dia_semana del backend: 0=lunes … 6=domingo
 // getDay() JS: 0=domingo, 1=lunes … 6=sábado
 // Conversión: (getDay() + 6) % 7  → 0=lunes … 6=domingo
@@ -67,7 +76,8 @@ export default function Calendario({ diasAbiertos, fechaSeleccionada, onSeleccio
     if (!date) return
     const pasado = esPasado(date, hoy)
     const cerrado = !diasAbiertos.has(diaSemanaISO(date))
-    if ((!permitirPasados && pasado) || cerrado) return
+    const futuraExcedida = esFuturaExcedida(date, hoy)
+    if ((!permitirPasados && pasado) || cerrado || futuraExcedida) return
     onSeleccionar(date)
   }
 
@@ -120,7 +130,8 @@ export default function Calendario({ diasAbiertos, fechaSeleccionada, onSeleccio
           }
           const pasado  = esPasado(date, hoy)
           const cerrado = !diasAbiertos.has(diaSemanaISO(date))
-          const inactivo = (!permitirPasados && pasado) || cerrado
+          const futuraExcedida = esFuturaExcedida(date, hoy)
+          const inactivo = (!permitirPasados && pasado) || cerrado || futuraExcedida
           const esHoy  = mismosDia(date, hoy)
           const selec  = mismosDia(date, fechaSeleccionada)
 

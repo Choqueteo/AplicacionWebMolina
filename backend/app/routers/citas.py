@@ -5,6 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.constants import DIAS_MAX_RESERVA, FRANJA_MINUTOS
 from app.database import get_db
 from app.dependencies import get_usuario_actual, solo_admin
 from app.models import Cita, EstadoCita, FranjaOcupada, HorarioPeluquero, Rol, Servicio, Usuario
@@ -93,11 +94,16 @@ def crear_cita(
             detail="Tu cuenta está bloqueada. Contacta con el peluquero.",
         )
 
-    # 2. Fecha no pasada
+    # 2. Fecha dentro de la ventana de reserva [hoy, hoy+DIAS_MAX_RESERVA]
     if datos.fecha < today_madrid:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="No se pueden reservar citas en fechas pasadas",
+        )
+    if datos.fecha > today_madrid + timedelta(days=DIAS_MAX_RESERVA):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Solo se pueden reservar citas con un máximo de {DIAS_MAX_RESERVA} días de antelación",
         )
 
     # 3. Horario del día
@@ -140,10 +146,10 @@ def crear_cita(
         db.add(cita)
         db.flush()  # obtiene cita.id sin confirmar
 
-        N = servicio.duracion_minutos // 30
+        N = servicio.duracion_minutos // FRANJA_MINUTOS
         for i in range(N):
             franja_hora = (
-                datetime.combine(date.min, datos.hora_inicio) + timedelta(minutes=30 * i)
+                datetime.combine(date.min, datos.hora_inicio) + timedelta(minutes=FRANJA_MINUTOS * i)
             ).time()
             db.add(FranjaOcupada(cita_id=cita.id, fecha=datos.fecha, hora=franja_hora))
 
