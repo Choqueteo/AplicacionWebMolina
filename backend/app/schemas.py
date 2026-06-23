@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
-from app.constants import FRANJA_MINUTOS
+from app.constants import DURACION_MAX_MINUTOS, FRANJA_MINUTOS
 from app.models import EstadoCita
 
 # Letras latinas con tildes/acentos, ñ y caracteres europeos comunes, más espacio, guión y apóstrofo
@@ -139,8 +139,11 @@ class ServicioCreate(BaseModel):
     @field_validator("duracion_minutos")
     @classmethod
     def multiplo_de_franja(cls, v: int) -> int:
-        if v % FRANJA_MINUTOS != 0:
-            raise ValueError(f"duracion_minutos debe ser múltiplo de {FRANJA_MINUTOS}")
+        if v % FRANJA_MINUTOS != 0 or v > DURACION_MAX_MINUTOS:
+            raise ValueError(
+                f"duracion_minutos debe ser múltiplo de {FRANJA_MINUTOS} "
+                f"y como máximo {DURACION_MAX_MINUTOS} min"
+            )
         return v
 
 
@@ -155,8 +158,11 @@ class ServicioUpdate(BaseModel):
     @field_validator("duracion_minutos")
     @classmethod
     def multiplo_de_franja(cls, v: int | None) -> int | None:
-        if v is not None and v % FRANJA_MINUTOS != 0:
-            raise ValueError(f"duracion_minutos debe ser múltiplo de {FRANJA_MINUTOS}")
+        if v is not None and (v % FRANJA_MINUTOS != 0 or v > DURACION_MAX_MINUTOS):
+            raise ValueError(
+                f"duracion_minutos debe ser múltiplo de {FRANJA_MINUTOS} "
+                f"y como máximo {DURACION_MAX_MINUTOS} min"
+            )
         return v
 
 

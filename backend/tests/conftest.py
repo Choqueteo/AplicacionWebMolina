@@ -149,25 +149,6 @@ def servicio_tinte(db_session) -> Servicio:
     return s
 
 
-@pytest.fixture()
-def servicio_barba(db_session) -> Servicio:
-    """Servicio de 15 minutos activo."""
-    s = Servicio(nombre="Barba", duracion_minutos=15, precio=Decimal("8.00"), activo=True)
-    db_session.add(s)
-    db_session.commit()
-    db_session.refresh(s)
-    return s
-
-
-@pytest.fixture()
-def servicio_corteybarba(db_session) -> Servicio:
-    """Servicio de 45 minutos activo."""
-    s = Servicio(nombre="Corte y barba", duracion_minutos=45, precio=Decimal("22.00"), activo=True)
-    db_session.add(s)
-    db_session.commit()
-    db_session.refresh(s)
-    return s
-
 
 @pytest.fixture()
 def horario_dia(db_session, fecha_test) -> HorarioPeluquero:

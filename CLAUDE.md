@@ -43,29 +43,29 @@ Dependencias de seguridad: `get_usuario_actual`, `solo_admin`.
 
 ---
 
-## Modelo de datos (basado en FRANJAS de 15 min)
+## Modelo de datos (basado en FRANJAS de 30 min)
 
 - **Usuario**: `id`, `email` (único), `password_hash`, `telefono`, `nombre_completo`, `rol` ('admin' | 'cliente'), `bloqueado` (bool, def. false).
-- **Servicio**: `id`, `nombre`, `duracion_minutos` (**múltiplo de 15**), `precio`, `activo` (bool, borrado lógico).
+- **Servicio**: `id`, `nombre`, `duracion_minutos` (**múltiplo de 30, máximo 300 min = 5 h**), `precio`, `activo` (bool, borrado lógico).
 - **HorarioPeluquero**: tramos de apertura por día (admite varios tramos/día, p. ej. 9:00–14:00 y 17:00–21:00).
 - **Cita**: `id`, `cliente_id`, `servicio_id`, `fecha`, `hora_inicio`, `hora_fin`, `estado` ('activa' | 'cancelada' | 'no_asistida').
-- **FranjaOcupada**: `id`, `cita_id` (FK), `fecha`, `hora`. Ocupación real; fuente de verdad de la disponibilidad. Los valores de `hora` caen en :00/:15/:30/:45.
+- **FranjaOcupada**: `id`, `cita_id` (FK), `fecha`, `hora`. Ocupación real; fuente de verdad de la disponibilidad. Los valores de `hora` caen en :00/:30.
 
-**Tamaño de franja = 15 min**, centralizado en UNA constante única (`FRANJA_MINUTOS = 15`) usada en TODA la lógica de franjas — nunca hardcodear 15 ni 30 por el código. Nº de franjas de un servicio = `duracion_minutos / FRANJA_MINUTOS`.
+**Tamaño de franja = 30 min**, centralizado en UNA constante única (`FRANJA_MINUTOS = 30`) usada en TODA la lógica de franjas — nunca hardcodear el valor por el código. Nº de franjas de un servicio = `duracion_minutos / FRANJA_MINUTOS`. Duración máxima de un servicio = `DURACION_MAX_MINUTOS = 300` (5 h).
 
-Ejemplos: barba 15 min = 1 franja · corte 30 min = 2 franjas · corte+barba 45 min = 3 franjas · tinte 60 min = 4 franjas · servicio largo 75 min (1 h 15) = 5 franjas. (Sin reposo entre franjas.)
+Ejemplos: corte 30 min = 1 franja · tinte 60 min = 2 franjas · servicio de 90 min = 3 franjas · … · servicio largo de 300 min (5 h) = 10 franjas. (Sin reposo entre franjas.)
 
 ---
 
 ## REGLA CRÍTICA: no reservas solapadas
 
-`UNIQUE (fecha, hora)` en `FranjaOcupada`: cada franja pertenece a una sola cita. Crear cita = insertar la Cita + sus N franjas (de 15 min) en UNA transacción; si una franja ya existe -> IntegrityError -> rollback -> `409 Conflict` -> el frontend pide recargar. Concurrencia resuelta a nivel de BD. (El esquema de la BD no cambia con el tamaño de franja: solo cambia la granularidad de los valores de `hora`.)
+`UNIQUE (fecha, hora)` en `FranjaOcupada`: cada franja pertenece a una sola cita. Crear cita = insertar la Cita + sus N franjas (de 30 min) en UNA transacción; si una franja ya existe -> IntegrityError -> rollback -> `409 Conflict` -> el frontend pide recargar. Concurrencia resuelta a nivel de BD.
 
 ---
 
 ## Disponibilidad
 
-`GET /disponibilidad?fecha=&servicio_id=` devuelve SOLO las horas de inicio válidas para ese servicio: las **N franjas de 15 min consecutivas** libres y dentro de un mismo tramo de apertura (N = `duracion_minutos / FRANJA_MINUTOS`). Un servicio de 45 min solo ofrece inicios donde caben 3 franjas; uno de 60 min, donde caben 4. Si la fecha es hoy, no se ofrecen horas pasadas. Solo se ofrecen fechas **dentro de la ventana de reserva** (ver abajo); fuera de ella, sin horas. El frontend solo muestra esas horas reservables.
+`GET /disponibilidad?fecha=&servicio_id=` devuelve SOLO las horas de inicio válidas para ese servicio: las **N franjas de 30 min consecutivas** libres y dentro de un mismo tramo de apertura (N = `duracion_minutos / FRANJA_MINUTOS`). Un servicio de 60 min solo ofrece inicios donde caben 2 franjas; uno de 5 h, donde caben 10 franjas seguidas. Si la fecha es hoy, no se ofrecen horas pasadas. Solo se ofrecen fechas **dentro de la ventana de reserva** (ver abajo); fuera de ella, sin horas. El frontend solo muestra esas horas reservables.
 
 ---
 
@@ -130,7 +130,8 @@ NO usar nunca la etiqueta "Confirmada".
 - AuthContext (login/logout/usuario+rol). Rutas protegidas por rol (público / cliente / admin). Cliente HTTP centralizado con Bearer automático y manejo central de 401 (cerrar sesión -> login) y 409 ("ese hueco se acaba de ocupar, recarga").
 - **Dos dashboards distintos**: cliente y admin.
 - Pantallas: Login, Registro (nombre, apellidos, teléfono, email, contraseña), Reservar (mostrar solo horas válidas del servicio; **calendario limitado a la ventana [hoy, hoy+30 días]**), Mis citas (con cancelar), Panel admin (agenda con estados derivados, marcar inasistencia, gestión de servicios y horario, bloquear clientes).
-- **Formateo de duración**: las duraciones no son siempre múltiplos de hora (15, 45, 75…). Mostrarlas bien: "15 min", "45 min", "1 h", "1 h 15 min".
+- **Crear servicio (admin)**: desplegable de duración de **30 min a 5 h en pasos de 30 min** (30, 60, 90, …, 300).
+- **Formateo de duración**: mostrar bien duraciones largas con media hora: "30 min", "1 h", "1 h 30 min", "2 h 30 min", "5 h", etc.
 
 ### Diseño visual (estética premium, paleta de la marca RM)
 - Estética elegante/premium en **negro y oro**, con **modo claro y oscuro**.

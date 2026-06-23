@@ -18,31 +18,31 @@ def test_crear_servicio_cliente_403(client, cliente_token):
     assert r.status_code == 403
 
 
-def test_duracion_no_multiplo_15(client, admin_token):
-    payload = {**_PAYLOAD, "duracion_minutos": 20}
+def test_duracion_no_multiplo_30(client, admin_token):
+    payload = {**_PAYLOAD, "duracion_minutos": 45}
     r = client.post("/servicios", json=payload, headers=_auth(admin_token))
     assert r.status_code == 422
 
 
-def test_servicio_15min_valido(client, admin_token):
-    payload = {**_PAYLOAD, "nombre": "Barba", "duracion_minutos": 15}
+def test_servicio_300min_valido(client, admin_token):
+    payload = {**_PAYLOAD, "nombre": "Servicio largo", "duracion_minutos": 300}
     r = client.post("/servicios", json=payload, headers=_auth(admin_token))
     assert r.status_code == 201
-    assert r.json()["duracion_minutos"] == 15
+    assert r.json()["duracion_minutos"] == 300
 
 
-def test_servicio_45min_valido(client, admin_token):
-    payload = {**_PAYLOAD, "nombre": "Corte y barba", "duracion_minutos": 45}
+def test_servicio_330min_invalido(client, admin_token):
+    """330 min excede el máximo de 300."""
+    payload = {**_PAYLOAD, "nombre": "Excedido", "duracion_minutos": 330}
     r = client.post("/servicios", json=payload, headers=_auth(admin_token))
-    assert r.status_code == 201
-    assert r.json()["duracion_minutos"] == 45
+    assert r.status_code == 422
 
 
-def test_servicio_75min_valido(client, admin_token):
-    payload = {**_PAYLOAD, "nombre": "Servicio completo", "duracion_minutos": 75}
+def test_servicio_360min_invalido(client, admin_token):
+    """360 min es múltiplo de 30 pero excede el máximo de 300."""
+    payload = {**_PAYLOAD, "nombre": "Excedido", "duracion_minutos": 360}
     r = client.post("/servicios", json=payload, headers=_auth(admin_token))
-    assert r.status_code == 201
-    assert r.json()["duracion_minutos"] == 75
+    assert r.status_code == 422
 
 
 def test_listar_solo_activos(client, admin_token, cliente_token):
