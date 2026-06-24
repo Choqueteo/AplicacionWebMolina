@@ -47,7 +47,14 @@ function generarCeldas(año, mes) {
   return celdas
 }
 
-export default function Calendario({ diasAbiertos, fechaSeleccionada, onSeleccionar, permitirPasados = false }) {
+function fechaISO(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+export default function Calendario({ diasAbiertos, fechasCerradas = new Set(), fechaSeleccionada, onSeleccionar, permitirPasados = false }) {
   const _now = new Date()
   const hoy  = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate())
   const initDate = (permitirPasados && fechaSeleccionada) ? fechaSeleccionada : hoy
@@ -77,7 +84,8 @@ export default function Calendario({ diasAbiertos, fechaSeleccionada, onSeleccio
     const pasado = esPasado(date, hoy)
     const cerrado = !diasAbiertos.has(diaSemanaISO(date))
     const futuraExcedida = esFuturaExcedida(date, hoy)
-    if ((!permitirPasados && pasado) || cerrado || futuraExcedida) return
+    const diaCerrado = fechasCerradas.has(fechaISO(date))
+    if ((!permitirPasados && pasado) || cerrado || futuraExcedida || diaCerrado) return
     onSeleccionar(date)
   }
 
@@ -131,7 +139,8 @@ export default function Calendario({ diasAbiertos, fechaSeleccionada, onSeleccio
           const pasado  = esPasado(date, hoy)
           const cerrado = !diasAbiertos.has(diaSemanaISO(date))
           const futuraExcedida = esFuturaExcedida(date, hoy)
-          const inactivo = (!permitirPasados && pasado) || cerrado || futuraExcedida
+          const diaCerrado = fechasCerradas.has(fechaISO(date))
+          const inactivo = (!permitirPasados && pasado) || cerrado || futuraExcedida || diaCerrado
           const esHoy  = mismosDia(date, hoy)
           const selec  = mismosDia(date, fechaSeleccionada)
 

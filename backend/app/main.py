@@ -10,7 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
 from app.rate_limit import limiter
-from app.routers import auth, citas, disponibilidad, horario, servicios, usuarios
+from app.routers import auth, citas, disponibilidad, excepciones, horario, servicios, usuarios
 
 _STATIC_SWAGGER = Path(__file__).parent / "static" / "swagger-ui"
 _STATIC_REDOC   = Path(__file__).parent / "static" / "redoc"
@@ -88,6 +88,7 @@ app.include_router(servicios.router)
 app.include_router(horario.router)
 app.include_router(disponibilidad.router)
 app.include_router(citas.router)
+app.include_router(excepciones.router)
 
 # ---------------------------------------------------------------------------
 # Documentación interactiva local (solo en desarrollo)

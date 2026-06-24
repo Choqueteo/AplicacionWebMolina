@@ -19,6 +19,7 @@ export default function DashboardCliente() {
   const [horario, setHorario]     = useState([])
   const [cargando, setCargando]   = useState(true)
   const [errorCarga, setErrorCarga] = useState('')
+  const [fechasCerradas, setFechasCerradas] = useState(new Set())
 
   useEffect(() => {
     Promise.all([
@@ -31,6 +32,13 @@ export default function DashboardCliente() {
       })
       .catch(() => setErrorCarga('No se pudieron cargar los datos. Recarga la página.'))
       .finally(() => setCargando(false))
+  }, [])
+
+  // Carga independiente: si falla, el calendario sigue funcionando (degradación elegante)
+  useEffect(() => {
+    client.get('/excepciones/proximas')
+      .then(r => setFechasCerradas(new Set(r.data.map(e => e.fecha))))
+      .catch(() => { /* silencioso */ })
   }, [])
 
   // Mapa id → servicio para que TabMisCitas cruce nombres sin llamadas extra
@@ -98,6 +106,7 @@ export default function DashboardCliente() {
               <TabReservar
                 servicios={servicios}
                 diasAbiertos={diasAbiertos}
+                fechasCerradas={fechasCerradas}
                 onVerMisCitas={() => setPestana('mis-citas')}
               />
             ) : (

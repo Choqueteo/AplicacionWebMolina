@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.constants import DIAS_MAX_RESERVA, FRANJA_MINUTOS
 from app.database import get_db
 from app.dependencies import get_usuario_actual, solo_admin
-from app.models import Cita, EstadoCita, FranjaOcupada, HorarioPeluquero, Rol, Servicio, Usuario
+from app.models import Cita, EstadoCita, ExcepcionFecha, FranjaOcupada, HorarioPeluquero, Rol, Servicio, TipoExcepcion, Usuario
 from app.notificaciones.telegram import enviar_aviso_peluquero
 from app.rate_limit import get_real_ip, limiter
 from app.schemas import CitaCreate, CitaRead
@@ -104,6 +104,13 @@ def crear_cita(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Solo se pueden reservar citas con un máximo de {DIAS_MAX_RESERVA} días de antelación",
+        )
+
+    # 2b. Fecha cerrada → 422
+    if db.query(ExcepcionFecha).filter_by(fecha=datos.fecha, tipo=TipoExcepcion.cerrado).first():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Ese día está cerrado y no admite reservas",
         )
 
     # 3. Horario del día (todos los tramos)

@@ -129,3 +129,22 @@ class FranjaOcupada(Base):
     hora    : Mapped[time] = mapped_column(Time)
 
     cita: Mapped["Cita"] = relationship(back_populates="franjas")
+
+
+class TipoExcepcion(str, enum.Enum):
+    cerrado = "cerrado"
+    # Futuro: horario_especial = "horario_especial"
+
+
+class ExcepcionFecha(Base):
+    __tablename__ = "excepcion_fecha"
+    __table_args__ = (
+        UniqueConstraint("fecha", name="uq_excepcion_fecha"),
+    )
+
+    id    : Mapped[int]           = mapped_column(primary_key=True)
+    fecha : Mapped[date]          = mapped_column(Date)
+    tipo  : Mapped[TipoExcepcion] = mapped_column(
+                SAEnum(TipoExcepcion, native_enum=False, length=20),
+                default=TipoExcepcion.cerrado,
+            )

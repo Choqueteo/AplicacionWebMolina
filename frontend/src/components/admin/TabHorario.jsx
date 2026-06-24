@@ -5,6 +5,20 @@ import styles from './TabHorario.module.css'
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
+function _fechaHoy() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function _formatFechaCierre(isoStr) {
+  const [y, m, d] = isoStr.split('-')
+  return new Date(Number(y), Number(m) - 1, Number(d))
+    .toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 export default function TabHorario() {
   const [horario,         setHorario]         = useState([])
   const [cargando,        setCargando]        = useState(true)
@@ -14,6 +28,12 @@ export default function TabHorario() {
   const [procesando,      setProcesando]      = useState(false)
   const [errorAccion,     setErrorAccion]     = useState('')
 
+  // Días cerrados
+  const [cerrados,        setCerrados]        = useState([])
+  const [fechaNuevoCierre, setFechaNuevoCierre] = useState('')
+  const [errorCerrar,     setErrorCerrar]     = useState('')
+  const [procesandoCerrar, setProcesandoCerrar] = useState(false)
+
   const cargar = () => {
     setCargando(true)
     client.get('/horario')
@@ -22,7 +42,44 @@ export default function TabHorario() {
       .finally(() => setCargando(false))
   }
 
+  const cargarCerrados = () => {
+    client.get('/excepciones')
+      .then(r => setCerrados(r.data))
+      .catch(() => {})
+  }
+
   useEffect(() => { cargar() }, [])
+  useEffect(() => { cargarCerrados() }, [])
+
+  const handleCerrarDia = async () => {
+    if (!fechaNuevoCierre) return
+    setProcesandoCerrar(true)
+    setErrorCerrar('')
+    try {
+      await client.post('/excepciones', { fecha: fechaNuevoCierre })
+      setFechaNuevoCierre('')
+      cargarCerrados()
+    } catch (err) {
+      const detail = err.response?.data?.detail
+      setErrorCerrar(typeof detail === 'string' ? detail : 'Error al cerrar el día. Inténtalo de nuevo.')
+    } finally {
+      setProcesandoCerrar(false)
+    }
+  }
+
+  const handleQuitarCierre = async (id) => {
+    setProcesandoCerrar(true)
+    setErrorCerrar('')
+    try {
+      await client.delete(`/excepciones/${id}`)
+      cargarCerrados()
+    } catch (err) {
+      const detail = err.response?.data?.detail
+      setErrorCerrar(typeof detail === 'string' ? detail : 'Error al quitar el cierre. Inténtalo de nuevo.')
+    } finally {
+      setProcesandoCerrar(false)
+    }
+  }
 
   // Agrupación: dia_semana → tramos ordenados por hora_apertura
   const tramosPorDia = {}
@@ -96,6 +153,54 @@ export default function TabHorario() {
       {errorAccion && (
         <p className={styles.errorGlobal} role="alert">{errorAccion}</p>
       )}
+
+      {/* ── Días cerrados ────────────────────────────────────────────────── */}
+      <section className={styles.seccionCerrados}>
+        <h3 className={styles.tituloCerrados}>Días cerrados</h3>
+
+        {errorCerrar && (
+          <p className={styles.errorGlobal} role="alert">{errorCerrar}</p>
+        )}
+
+        <div className={styles.formCerrar}>
+          <input
+            type="date"
+            className={styles.inputFecha}
+            value={fechaNuevoCierre}
+            min={_fechaHoy()}
+            onChange={e => { setFechaNuevoCierre(e.target.value); setErrorCerrar('') }}
+            aria-label="Fecha a cerrar"
+          />
+          <button
+            type="button"
+            className={styles.btnGuardar}
+            disabled={!fechaNuevoCierre || procesandoCerrar}
+            onClick={handleCerrarDia}
+          >
+            {procesandoCerrar ? 'Guardando…' : 'Cerrar día'}
+          </button>
+        </div>
+
+        {cerrados.length > 0 && (
+          <ul className={styles.listaCerrados}>
+            {cerrados.map(exc => (
+              <li key={exc.id} className={styles.itemCerrado}>
+                <span className={styles.fechaTexto} style={{ textTransform: 'capitalize' }}>
+                  {_formatFechaCierre(exc.fecha)}
+                </span>
+                <button
+                  type="button"
+                  className={styles.btnQuitar}
+                  disabled={procesandoCerrar}
+                  onClick={() => handleQuitarCierre(exc.id)}
+                >
+                  Quitar
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {DIAS.map((nombre, dia) => {
         const tramos = tramosPorDia[dia] ?? []

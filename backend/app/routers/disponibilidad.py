@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.constants import DIAS_MAX_RESERVA, FRANJA_MINUTOS
 from app.database import get_db
 from app.dependencies import get_usuario_actual
-from app.models import FranjaOcupada, HorarioPeluquero, Servicio, Usuario
+from app.models import ExcepcionFecha, FranjaOcupada, HorarioPeluquero, Servicio, TipoExcepcion, Usuario
 from app.schemas import DisponibilidadRead
 
 router = APIRouter(tags=["disponibilidad"])
@@ -77,6 +77,10 @@ def consultar_disponibilidad(
 
     # Fecha fuera de ventana de reserva → sin disponibilidad (no error)
     if fecha < today_madrid or fecha > today_madrid + timedelta(days=DIAS_MAX_RESERVA):
+        return DisponibilidadRead(fecha=fecha, servicio_id=servicio_id, horas_disponibles=[])
+
+    # Fecha cerrada → sin disponibilidad (no error)
+    if db.query(ExcepcionFecha).filter_by(fecha=fecha, tipo=TipoExcepcion.cerrado).first():
         return DisponibilidadRead(fecha=fecha, servicio_id=servicio_id, horas_disponibles=[])
 
     # Buscar todos los tramos del día de la semana

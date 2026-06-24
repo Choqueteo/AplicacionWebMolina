@@ -263,3 +263,19 @@ class DisponibilidadRead(BaseModel):
     fecha: date
     servicio_id: int
     horas_disponibles: list[time]
+
+
+# ---------------------------------------------------------------------------
+# Excepciones de fecha
+# ---------------------------------------------------------------------------
+
+class ExcepcionFechaCreate(BaseModel):
+    fecha: date
+    model_config = {"extra": "forbid"}
+
+
+class ExcepcionFechaRead(BaseModel):
+    id    : int
+    fecha : date
+    tipo  : str
+    model_config = {"from_attributes": True}

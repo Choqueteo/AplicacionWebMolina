@@ -33,7 +33,7 @@ function fechaAString(date) {
   return `${y}-${m}-${d}`
 }
 
-export default function TabReservar({ servicios, diasAbiertos, onVerMisCitas }) {
+export default function TabReservar({ servicios, diasAbiertos, fechasCerradas = new Set(), onVerMisCitas }) {
   const [servicio, setServicio]     = useState(null)
   const [fecha, setFecha]           = useState(null)
   const [hora, setHora]             = useState(null)
@@ -174,6 +174,7 @@ export default function TabReservar({ servicios, diasAbiertos, onVerMisCitas }) 
           <h2 className={styles.seccionTitulo}>Elige un día</h2>
           <Calendario
             diasAbiertos={diasAbiertos}
+            fechasCerradas={fechasCerradas}
             fechaSeleccionada={fecha}
             onSeleccionar={handleFecha}
           />

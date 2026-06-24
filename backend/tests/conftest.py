@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
-from app.models import Cita, FranjaOcupada, HorarioPeluquero, Rol, Servicio, Usuario
+from app.models import Cita, ExcepcionFecha, FranjaOcupada, HorarioPeluquero, Rol, Servicio, TipoExcepcion, Usuario
 from app.security import create_access_token, hash_password
 
 
@@ -52,6 +52,9 @@ def db_session():
         # franja_ocupada: ORM directo — UNIQUE(fecha, hora) compatible con SQLite
         # Orden: después de citas porque tiene FK a citas.id
         FranjaOcupada.__table__.create(bind=conn)
+
+        # excepcion_fecha: ORM directo (UNIQUE(fecha) compatible con SQLite)
+        ExcepcionFecha.__table__.create(bind=conn)
 
         conn.commit()
 
