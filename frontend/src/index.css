@@ -19,6 +19,7 @@
 /* Base */
 body {
   font-family: 'Inter', system-ui, sans-serif;
+  font-size: var(--text-base);
   background: var(--c-bg);
   color: var(--c-text);
   line-height: var(--leading-normal);

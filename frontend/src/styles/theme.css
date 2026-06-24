@@ -3,11 +3,11 @@
 :root,
 [data-theme="dark"] {
   /* ── Escala tipográfica (no varía por tema) ────────────────────────────── */
-  --text-xs:     0.8125rem;   /* 13px  — mínimo absoluto: badges, cabeceras de tabla */
-  --text-sm:     0.875rem;    /* 14px  — labels, ayuda, errores, meta info           */
-  --text-base:   1rem;        /* 16px  — inputs, cuerpo principal                    */
-  --text-lg:     1.125rem;    /* 18px  — títulos de sección                          */
-  --text-xl:     1.75rem;     /* 28px  — títulos de página                           */
+  --text-xs:     0.875rem;    /* 14px  — mínimo absoluto: badges, cabeceras de tabla */
+  --text-sm:     0.9375rem;   /* 15px  — labels, ayuda, errores, meta info           */
+  --text-base:   1.0625rem;   /* 17px  — inputs*, cuerpo principal (*FormField: 1rem)*/
+  --text-lg:     1.1875rem;   /* 19px  — títulos de sección                          */
+  --text-xl:     1.875rem;    /* 30px  — títulos de página                           */
 
   --leading-snug:   1.35;
   --leading-normal: 1.5;
