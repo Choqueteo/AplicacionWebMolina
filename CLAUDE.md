@@ -47,9 +47,10 @@ Dependencias de seguridad: `get_usuario_actual`, `solo_admin`.
 
 - **Usuario**: `id`, `email` (único), `password_hash`, `telefono`, `nombre_completo`, `rol` ('admin' | 'cliente'), `bloqueado` (bool, def. false).
 - **Servicio**: `id`, `nombre`, `duracion_minutos` (**múltiplo de 30, máximo 300 min = 5 h**), `precio`, `activo` (bool, borrado lógico).
-- **HorarioPeluquero**: tramos de apertura por día (admite varios tramos/día, p. ej. 9:00–14:00 y 17:00–21:00).
+- **HorarioPeluquero**: tramos de apertura por día de la semana (admite varios tramos/día, p. ej. 9:00–14:00 y 17:00–21:00). Horario **recurrente semanal**.
 - **Cita**: `id`, `cliente_id`, `servicio_id`, `fecha`, `hora_inicio`, `hora_fin`, `estado` ('activa' | 'cancelada' | 'no_asistida').
 - **FranjaOcupada**: `id`, `cita_id` (FK), `fecha`, `hora`. Ocupación real; fuente de verdad de la disponibilidad. Los valores de `hora` caen en :00/:30.
+- **ExcepcionHorario** (días cerrados): excepción por **fecha concreta** que tiene prioridad sobre el horario semanal. Ver sección "Excepciones de horario".
 
 **Tamaño de franja = 30 min**, centralizado en UNA constante única (`FRANJA_MINUTOS = 30`) usada en TODA la lógica de franjas — nunca hardcodear el valor por el código. Nº de franjas de un servicio = `duracion_minutos / FRANJA_MINUTOS`. Duración máxima de un servicio = `DURACION_MAX_MINUTOS = 300` (5 h).
 
@@ -65,7 +66,7 @@ Ejemplos: corte 30 min = 1 franja · tinte 60 min = 2 franjas · servicio de 90 
 
 ## Disponibilidad
 
-`GET /disponibilidad?fecha=&servicio_id=` devuelve SOLO las horas de inicio válidas para ese servicio: las **N franjas de 30 min consecutivas** libres y dentro de un mismo tramo de apertura (N = `duracion_minutos / FRANJA_MINUTOS`). Un servicio de 60 min solo ofrece inicios donde caben 2 franjas; uno de 5 h, donde caben 10 franjas seguidas. Si la fecha es hoy, no se ofrecen horas pasadas. Solo se ofrecen fechas **dentro de la ventana de reserva** (ver abajo); fuera de ella, sin horas. El frontend solo muestra esas horas reservables.
+`GET /disponibilidad?fecha=&servicio_id=` devuelve SOLO las horas de inicio válidas para ese servicio: las **N franjas de 30 min consecutivas** libres y dentro de un mismo tramo de apertura (N = `duracion_minutos / FRANJA_MINUTOS`). Un servicio de 60 min solo ofrece inicios donde caben 2 franjas; uno de 5 h, donde caben 10 franjas seguidas. Si la fecha es hoy, no se ofrecen horas pasadas. Solo se ofrecen fechas **dentro de la ventana de reserva** y que **no sean un día cerrado** (ver secciones siguientes); en esos casos, sin horas. El frontend solo muestra esas horas reservables.
 
 ---
 
@@ -74,8 +75,26 @@ Ejemplos: corte 30 min = 1 franja · tinte 60 min = 2 franjas · servicio de 90 
 Un cliente solo puede reservar dentro de una ventana **rodante** de como máximo **`DIAS_MAX_RESERVA = 30`** días naturales desde hoy: rango **[hoy, hoy + 30 días]** (ambos inclusive). "Hoy" se calcula SIEMPRE en **Europe/Madrid**. Como se computa en cada petición, la ventana se desplaza sola con el paso de los días (sin cron). Objetivo: evitar reservas en fechas absurdamente lejanas.
 
 - Constante única/configurable (`DIAS_MAX_RESERVA`), definida en el backend.
-- **Backend (defensa real)**: `GET /disponibilidad` devuelve `horas_disponibles` vacío para fechas fuera de la ventana (no error). `POST /citas` rechaza con **422** (mensaje claro) si la fecha está fuera de `[hoy, hoy+DIAS_MAX_RESERVA]`, igual que ya rechaza fechas pasadas/inválidas.
-- **Frontend**: el calendario de Reservar deshabilita los días fuera de la ventana (los pasados Y los posteriores a hoy+30), igual que ya hace con pasados/cerrados. Construir fechas con componentes locales del `Date` (nunca `toISOString()`). Mantener el valor 30 en sintonía con el backend.
+- **Backend (defensa real)**: `GET /disponibilidad` devuelve `horas_disponibles` vacío para fechas fuera de la ventana (no error). `POST /citas` rechaza con **422** (mensaje claro) si la fecha está fuera de `[hoy, hoy+DIAS_MAX_RESERVA]`.
+- **Frontend**: el calendario de Reservar deshabilita los días fuera de la ventana (los pasados Y los posteriores a hoy+30). Construir fechas con componentes locales del `Date` (nunca `toISOString()`). Mantener el valor 30 en sintonía con el backend.
+
+---
+
+## Excepciones de horario (días cerrados)
+
+El peluquero puede marcar **fechas concretas como cerradas** (vacaciones, festivo, un día suelto) SIN tocar el horario semanal recurrente — los demás días de esa misma semana siguen abiertos. Una fecha cerrada **tiene prioridad sobre el horario semanal**: ese día no hay disponibilidad aunque su día de la semana tenga tramos.
+
+- **Modelo (`ExcepcionHorario`)**: excepción por **fecha** (solo la fecha, **sin campo motivo**). Diseñado para poder **extenderse en el futuro** a "horarios especiales por fecha" (un día con tramos distintos a los semanales): incluir un discriminador `tipo` que de momento es siempre "cerrado". **En esta fase SOLO se implementa el cierre de día completo**; no construir aún los horarios especiales.
+- **Endpoints admin (`solo_admin`)**:
+  - Listar días cerrados.
+  - Añadir un día cerrado. **Si esa fecha YA tiene citas activas → RECHAZA con 409** y mensaje claro (cuántas citas hay); no se cierra un día por encima de citas vivas. El admin debe cancelarlas antes.
+  - Eliminar un día cerrado.
+- **Endpoint para el cliente**: forma (accesible a clientes autenticados) de obtener las fechas cerradas dentro de `[hoy, hoy+DIAS_MAX_RESERVA]`, para que el calendario las deshabilite.
+- **Disponibilidad / reserva**: `GET /disponibilidad` para una fecha cerrada → `horas_disponibles` vacío. `POST /citas` para una fecha cerrada → **422** con mensaje claro.
+- **Frontend**:
+  - Panel admin (TabHorario): sección "Días cerrados" — añadir una fecha (calendario), lista de las cerradas, quitar cada una. Aviso (del 409) al intentar cerrar un día con citas activas.
+  - Calendario del cliente: las fechas cerradas salen **deshabilitadas**, igual que los días sin horario / pasados / fuera de ventana.
+- ⚠️ **Coherencia de zona horaria**: el chequeo de "día cerrado" usa Europe/Madrid y se aplica de forma **IDÉNTICA** en `/disponibilidad` y `POST /citas` (misma lección que el bug de tz ya corregido). Incluir test con "hoy cerrado".
 
 ---
 
@@ -110,6 +129,7 @@ NO usar nunca la etiqueta "Confirmada".
 - Recordatorios WhatsApp/SMS. V2.
 - Verificación del teléfono por SMS (OTP). V2 si hay abuso.
 - Tiempo real / actualización en vivo.
+- Horarios especiales por fecha (un día con tramos distintos a los semanales): previsto a futuro; el modelo de ExcepcionHorario se diseña para soportarlo, pero NO se implementa todavía.
 
 ---
 
@@ -129,7 +149,7 @@ NO usar nunca la etiqueta "Confirmada".
 - **Mobile-first y responsiva** (uso principal en móvil).
 - AuthContext (login/logout/usuario+rol). Rutas protegidas por rol (público / cliente / admin). Cliente HTTP centralizado con Bearer automático y manejo central de 401 (cerrar sesión -> login) y 409 ("ese hueco se acaba de ocupar, recarga").
 - **Dos dashboards distintos**: cliente y admin.
-- Pantallas: Login, Registro (nombre, apellidos, teléfono, email, contraseña), Reservar (mostrar solo horas válidas del servicio; **calendario limitado a la ventana [hoy, hoy+30 días]**), Mis citas (con cancelar), Panel admin (agenda con estados derivados, marcar inasistencia, gestión de servicios y horario, bloquear clientes).
+- Pantallas: Login, Registro (nombre, apellidos, teléfono, email, contraseña), Reservar (mostrar solo horas válidas del servicio; **calendario limitado a la ventana [hoy, hoy+30 días] y con los días cerrados deshabilitados**), Mis citas (con cancelar), Panel admin (agenda con estados derivados, marcar inasistencia, gestión de servicios y horario, **días cerrados**, bloquear clientes).
 - **Crear servicio (admin)**: desplegable de duración de **30 min a 5 h en pasos de 30 min** (30, 60, 90, …, 300).
 - **Formateo de duración**: mostrar bien duraciones largas con media hora: "30 min", "1 h", "1 h 30 min", "2 h 30 min", "5 h", etc.
 
