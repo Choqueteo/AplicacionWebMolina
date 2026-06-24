@@ -106,21 +106,30 @@ def crear_cita(
             detail=f"Solo se pueden reservar citas con un máximo de {DIAS_MAX_RESERVA} días de antelación",
         )
 
-    # 3. Horario del día
-    horario = db.query(HorarioPeluquero).filter_by(dia_semana=datos.fecha.weekday()).first()
-    if not horario:
+    # 3. Horario del día (todos los tramos)
+    tramos = (
+        db.query(HorarioPeluquero)
+        .filter_by(dia_semana=datos.fecha.weekday())
+        .order_by(HorarioPeluquero.hora_apertura)
+        .all()
+    )
+    if not tramos:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="No hay horario definido para ese día de la semana",
         )
 
-    # 4. Servicio cabe dentro del tramo horario
+    # 4. Servicio cabe dentro de algún tramo del día
     hora_fin = (
         datetime.combine(date.min, datos.hora_inicio)
         + timedelta(minutes=servicio.duracion_minutos)
     ).time()
 
-    if datos.hora_inicio < horario.hora_apertura or hora_fin > horario.hora_cierre:
+    cabe = any(
+        datos.hora_inicio >= tramo.hora_apertura and hora_fin <= tramo.hora_cierre
+        for tramo in tramos
+    )
+    if not cabe:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="La cita queda fuera del horario de apertura",

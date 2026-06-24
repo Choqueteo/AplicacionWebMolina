@@ -490,6 +490,38 @@ def test_hora_inicio_15_invalido(client, cliente_token, servicio_corte, horario_
 
 
 # ---------------------------------------------------------------------------
+# Múltiples tramos de horario en el mismo día
+# ---------------------------------------------------------------------------
+
+def test_reserva_segundo_tramo_del_dia(client, cliente_token, db_session, servicio_corte, fecha_test):
+    """
+    Día con tramos 09:00-14:00 y 17:00-22:00.
+    Reservar a las 17:00 (segundo tramo) → 201.
+    """
+    db_session.add(HorarioPeluquero(dia_semana=fecha_test.weekday(), hora_apertura=time(9, 0),  hora_cierre=time(14, 0)))
+    db_session.add(HorarioPeluquero(dia_semana=fecha_test.weekday(), hora_apertura=time(17, 0), hora_cierre=time(22, 0)))
+    db_session.commit()
+
+    r = client.post("/citas", json=_payload(servicio_corte.id, fecha_test, "17:00:00"), headers=_auth(cliente_token))
+    assert r.status_code == 201
+    assert r.json()["hora_inicio"] == "17:00:00"
+    assert r.json()["hora_fin"]    == "17:30:00"
+
+
+def test_reserva_entre_tramos_422(client, cliente_token, db_session, servicio_corte, fecha_test):
+    """
+    Día con tramos 09:00-14:00 y 17:00-22:00.
+    Reservar a las 15:00 (hueco entre tramos) → 422.
+    """
+    db_session.add(HorarioPeluquero(dia_semana=fecha_test.weekday(), hora_apertura=time(9, 0),  hora_cierre=time(14, 0)))
+    db_session.add(HorarioPeluquero(dia_semana=fecha_test.weekday(), hora_apertura=time(17, 0), hora_cierre=time(22, 0)))
+    db_session.commit()
+
+    r = client.post("/citas", json=_payload(servicio_corte.id, fecha_test, "15:00:00"), headers=_auth(cliente_token))
+    assert r.status_code == 422
+
+
+# ---------------------------------------------------------------------------
 # Ventana de reserva [hoy, hoy+DIAS_MAX_RESERVA]
 # ---------------------------------------------------------------------------
 
