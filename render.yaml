@@ -56,6 +56,31 @@ services:
       - key: TELEGRAM_CHAT_ID
         sync: false
 
+  # ── Cron: recordatorio diario al peluquero (22:00 Madrid / 20:00 UTC CEST) ───
+  - type: cron
+    name: rm-recordatorios
+    runtime: python
+    region: frankfurt
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/recordatorio_diario.py
+    schedule: "0 20 * * *"
+    envVars:
+      # Requeridos por pydantic Settings al importar app.config:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: rm-postgres
+          property: connectionString
+      # No usado por el script, pero Settings lo exige; generateValue genera un valor único.
+      - key: SECRET_KEY
+        generateValue: true
+      # sync:false no se comparten entre servicios — introducir TAMBIÉN manualmente
+      # en el panel de Render de ESTE servicio cron (no se heredan del backend).
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+
   # ── Frontend (React + Vite → static site) ────────────────────────────────────
   - type: web
     name: rm-frontend
