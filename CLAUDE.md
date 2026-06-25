@@ -15,7 +15,7 @@ App web de gestión de citas para una peluquería/barbería real ("RM — Peluqu
 - Backend: FastAPI (Python). Frontend: React + Vite. BD: PostgreSQL.
 - ORM: SQLAlchemy + Alembic. Validación: Pydantic. Auth: JWT (cabecera `Authorization: Bearer`). Rate limiting: slowapi. Tests: pytest.
 - Entorno local: PostgreSQL en contenedor Docker (docker-compose) + HeidiSQL.
-- Hosting: Render (backend Web Service de pago, PostgreSQL gestionado con backups, frontend static site).
+- Hosting: Render (backend Web Service de pago, PostgreSQL gestionado con backups, frontend static site, **Cron Job para el recordatorio diario**).
 - Sin tiempo real: la disponibilidad se refresca al recargar.
 
 ---
@@ -84,17 +84,28 @@ Un cliente solo puede reservar dentro de una ventana **rodante** de como máximo
 
 El peluquero puede marcar **fechas concretas como cerradas** (vacaciones, festivo, un día suelto) SIN tocar el horario semanal recurrente — los demás días de esa misma semana siguen abiertos. Una fecha cerrada **tiene prioridad sobre el horario semanal**: ese día no hay disponibilidad aunque su día de la semana tenga tramos.
 
-- **Modelo (`ExcepcionHorario`)**: excepción por **fecha** (solo la fecha, **sin campo motivo**). Diseñado para poder **extenderse en el futuro** a "horarios especiales por fecha" (un día con tramos distintos a los semanales): incluir un discriminador `tipo` que de momento es siempre "cerrado". **En esta fase SOLO se implementa el cierre de día completo**; no construir aún los horarios especiales.
-- **Endpoints admin (`solo_admin`)**:
-  - Listar días cerrados.
-  - Añadir un día cerrado. **Si esa fecha YA tiene citas activas → RECHAZA con 409** y mensaje claro (cuántas citas hay); no se cierra un día por encima de citas vivas. El admin debe cancelarlas antes.
-  - Eliminar un día cerrado.
-- **Endpoint para el cliente**: forma (accesible a clientes autenticados) de obtener las fechas cerradas dentro de `[hoy, hoy+DIAS_MAX_RESERVA]`, para que el calendario las deshabilite.
-- **Disponibilidad / reserva**: `GET /disponibilidad` para una fecha cerrada → `horas_disponibles` vacío. `POST /citas` para una fecha cerrada → **422** con mensaje claro.
-- **Frontend**:
-  - Panel admin (TabHorario): sección "Días cerrados" — añadir una fecha (calendario), lista de las cerradas, quitar cada una. Aviso (del 409) al intentar cerrar un día con citas activas.
-  - Calendario del cliente: las fechas cerradas salen **deshabilitadas**, igual que los días sin horario / pasados / fuera de ventana.
-- ⚠️ **Coherencia de zona horaria**: el chequeo de "día cerrado" usa Europe/Madrid y se aplica de forma **IDÉNTICA** en `/disponibilidad` y `POST /citas` (misma lección que el bug de tz ya corregido). Incluir test con "hoy cerrado".
+- **Modelo (`ExcepcionFecha`)**: excepción por **fecha** (solo la fecha, **sin campo motivo**), con discriminador `tipo` (de momento siempre "cerrado"). Diseñado para **extenderse a futuro** a "horarios especiales por fecha" sin construir esa parte ahora.
+- **Endpoints admin (`solo_admin`)**: listar, añadir y eliminar días cerrados. Al añadir, **si esa fecha YA tiene citas activas → 409** con el conteo; no se cierra por encima de citas vivas.
+- **Endpoint cliente**: obtener las fechas cerradas dentro de `[hoy, hoy+DIAS_MAX_RESERVA]` para deshabilitarlas en el calendario.
+- **Disponibilidad / reserva**: fecha cerrada → `/disponibilidad` vacío; `POST /citas` → **422**.
+- **Frontend**: panel admin (TabHorario) sección "Días cerrados"; calendario del cliente deshabilita las fechas cerradas.
+- ⚠️ **Zona horaria**: el chequeo de "día cerrado" usa Europe/Madrid e IDÉNTICO en `/disponibilidad` y `POST /citas`.
+
+---
+
+## Notificaciones al peluquero (Telegram)
+
+Avisos al peluquero por Telegram (nunca al cliente, en V1). `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` en variables de entorno; si faltan, no se envía nada. Los fallos de Telegram se silencian/registran y **nunca rompen** la operación.
+
+1. **Avisos instantáneos** (dentro de la petición, en `BackgroundTasks`, tras confirmar la transacción): cuando un cliente **reserva** (`POST /citas`) o **cancela** (`PATCH /citas/{id}/cancelar`, solo si cancela el cliente). Mensaje conciso: nombre, teléfono, servicio, fecha y hora, acción.
+2. **Recordatorio diario** (proceso programado): **todos los días a las 22:00 (Europe/Madrid)**, un **resumen de las citas del día siguiente**. Se envía **SIEMPRE**, haya o no citas. Detalles:
+   - Lo ejecuta un **Render Cron Job** (`scripts/recordatorio_diario.py`), schedule `0 20 * * *` (20:00 UTC = 22:00 Madrid en horario de verano/CEST).
+   - "Mañana" = hoy + 1 día, con **hoy en Europe/Madrid** (NO depender de la hora del cron, que corre en UTC).
+   - Selecciona citas `estado=activa`, `fecha == mañana`, ordenadas por hora. Envía UN mensaje:
+     - Si NO hay citas → texto indicándolo (p. ej. "Mañana DD/MM no tienes citas").
+     - Si hay → la lista, cada línea con **hora y nombre del cliente** (p. ej. "10:00 — Juan Pérez").
+   - **Idempotencia por horario fijo**: una sola ejecución al día. NO se usa campo en BD (un disparo manual de prueba reenviaría, lo cual es esperable).
+   - ⚠️ El `schedule` de Render Cron es **UTC**; con DST la hora local variará ±1 h (en invierno/CET sería 21:00 Madrid). El piloto es en verano → cae exactamente a las 22:00. "Mañana" se calcula en Madrid, así que la fecha siempre es correcta.
 
 ---
 
@@ -126,10 +137,10 @@ NO usar nunca la etiqueta "Confirmada".
 ## Fuera de alcance en V1
 
 - Pagos online (pago presencial). V2.
-- Recordatorios WhatsApp/SMS. V2.
+- Recordatorios WhatsApp/SMS al cliente. V2. (El recordatorio diario de V1 es solo al peluquero por Telegram.)
 - Verificación del teléfono por SMS (OTP). V2 si hay abuso.
 - Tiempo real / actualización en vivo.
-- Horarios especiales por fecha (un día con tramos distintos a los semanales): previsto a futuro; el modelo de ExcepcionHorario se diseña para soportarlo, pero NO se implementa todavía.
+- Horarios especiales por fecha (un día con tramos distintos a los semanales): previsto a futuro; el modelo de ExcepcionFecha se diseña para soportarlo, pero NO se implementa todavía.
 
 ---
 
@@ -155,6 +166,7 @@ NO usar nunca la etiqueta "Confirmada".
 
 ### Diseño visual (estética premium, paleta de la marca RM)
 - Estética elegante/premium en **negro y oro**, con **modo claro y oscuro**.
+- **Tamaño de letra**: escala tipográfica algo amplia para buena legibilidad (cuerpo ~17-18px). Inputs y cuerpo **nunca por debajo de 16px** en móvil (accesibilidad / evita el zoom de iOS). Escala parametrizada en variables CSS de `theme.css` (no hardcodear tamaños por componente).
 - **Logo**: usar la imagen del logo RM (no texto). Versión con **fondo transparente** (PNG/SVG). Favicon: monograma "RM" dorado sobre fondo oscuro (set completo SVG + PNG + apple-touch-icon + site.webmanifest).
 - Tipografía con un toque serif para la marca/títulos (Cormorant Garamond); sans para el resto (Inter). Self-hosted (RGPD).
 - **Micro-interacciones**: transiciones suaves, `:hover` en botones, animaciones de entrada sencillas. Con mesura y cuidando el rendimiento en móvil; respetar `prefers-reduced-motion`.
