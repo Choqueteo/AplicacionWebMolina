@@ -23,7 +23,7 @@ services:
       - key: ALGORITHM
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
-        value: "60"
+        value: "10080"   # 60 * 24 * 7
       - key: RETENCION_MESES
         value: "24"
       # ── Inyectada por Render desde la BD gestionada ──────────────────────────

@@ -1,12 +1,32 @@
 import { useEffect, useState } from 'react'
 import client from '../../api/client'
 import Spinner from '../ui/Spinner'
+import Calendario from './Calendario'
 import styles from './TabMisCitas.module.css'
 
 function esPasada(cita) {
   const [y, m, d] = cita.fecha.split('-').map(Number)
   const [h, min]  = cita.hora_inicio.split(':').map(Number)
   return new Date(y, m - 1, d, h, min) <= new Date()
+}
+
+function tieneAntelacion(cita) {
+  const [y, m, d] = cita.fecha.split('-').map(Number)
+  const [h, min]  = cita.hora_inicio.split(':').map(Number)
+  return new Date(y, m - 1, d, h, min) > new Date(Date.now() + 24 * 60 * 60 * 1000)
+}
+
+function fechaAStr(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function formatDuracionMin(minutos) {
+  if (minutos >= 60 && minutos % 60 === 0) return `${minutos / 60} h`
+  if (minutos >= 60) return `${Math.floor(minutos / 60)} h ${minutos % 60} min`
+  return `${minutos} min`
 }
 
 function calcDuracionMinutos(hora_inicio, hora_fin) {
@@ -43,20 +63,43 @@ function ordenarCitas(citas) {
   return [...proximas, ...resto]
 }
 
-export default function TabMisCitas({ serviciosMap, onReservar }) {
+export default function TabMisCitas({ serviciosMap, diasAbiertos = new Set(), fechasCerradas = new Set(), onReservar }) {
   const [citas, setCitas]               = useState([])
   const [cargando, setCargando]         = useState(true)
   const [errorCarga, setErrorCarga]     = useState('')
-  const [cancelando, setCancelando]     = useState(null)   // id de la cita con modal abierto
+  const [cancelando, setCancelando]     = useState(null)
   const [cargandoCancel, setCargandoCancel] = useState(false)
   const [errorCancel, setErrorCancel]   = useState('')
 
-  useEffect(() => {
+  // Estado del modal de reprogramación
+  const [reprogramando, setReprogramando]   = useState(null)   // cita | null
+  const [fechaReprog, setFechaReprog]       = useState(null)
+  const [horaReprog, setHoraReprog]         = useState(null)
+  const [horasDisp, setHorasDisp]           = useState([])
+  const [cargandoHoras, setCargandoHoras]   = useState(false)
+  const [cargandoReprog, setCargandoReprog] = useState(false)
+  const [errorReprog, setErrorReprog]       = useState('')
+
+  const cargarCitas = () => {
     client.get('/citas/mias')
       .then(r => setCitas(r.data))
       .catch(() => setErrorCarga('No se pudieron cargar tus citas. Recarga la página.'))
       .finally(() => setCargando(false))
-  }, [])
+  }
+
+  useEffect(() => { cargarCitas() }, [])
+
+  // Cargar horas disponibles cuando cambia la fecha en el modal de reprogramación
+  useEffect(() => {
+    if (!reprogramando || !fechaReprog) { setHorasDisp([]); return }
+    setCargandoHoras(true)
+    setHoraReprog(null)
+    const fechaStr = fechaAStr(fechaReprog)
+    client.get(`/disponibilidad?fecha=${fechaStr}&servicio_id=${reprogramando.servicio_id}`)
+      .then(r => setHorasDisp(r.data.horas_disponibles))
+      .catch(() => setHorasDisp([]))
+      .finally(() => setCargandoHoras(false))
+  }, [fechaReprog, reprogramando])
 
   const abrirModal = (id) => {
     setErrorCancel('')
@@ -66,6 +109,49 @@ export default function TabMisCitas({ serviciosMap, onReservar }) {
   const cerrarModal = () => {
     setCancelando(null)
     setErrorCancel('')
+  }
+
+  const abrirReprogramar = (cita) => {
+    setReprogramando(cita)
+    setFechaReprog(null)
+    setHoraReprog(null)
+    setHorasDisp([])
+    setErrorReprog('')
+  }
+
+  const cerrarReprogramar = () => {
+    setReprogramando(null)
+    setFechaReprog(null)
+    setHoraReprog(null)
+    setHorasDisp([])
+    setErrorReprog('')
+  }
+
+  const confirmarReprogramar = async () => {
+    if (!reprogramando || !fechaReprog || !horaReprog) return
+    setErrorReprog('')
+    setCargandoReprog(true)
+    try {
+      const r = await client.patch(`/citas/${reprogramando.id}/reprogramar`, {
+        fecha: fechaAStr(fechaReprog),
+        hora_inicio: horaReprog,
+      })
+      setCitas(prev => prev.map(c => c.id === reprogramando.id ? r.data : c))
+      cerrarReprogramar()
+    } catch (err) {
+      const status = err.response?.status
+      const detail = err.response?.data?.detail
+      if (status === 409) {
+        setErrorReprog('Ese hueco se acaba de ocupar. Elige otra fecha u hora.')
+        cargarCitas()
+      } else if (status === 422 || status === 403) {
+        setErrorReprog(detail || 'No se pudo reprogramar. Comprueba los datos.')
+      } else {
+        setErrorReprog('Error inesperado. Inténtalo de nuevo.')
+      }
+    } finally {
+      setCargandoReprog(false)
+    }
   }
 
   const confirmarCancelacion = async (id) => {
@@ -116,9 +202,11 @@ export default function TabMisCitas({ serviciosMap, onReservar }) {
         const duracion    = servicio
           ? servicio.duracion_minutos
           : calcDuracionMinutos(cita.hora_inicio, cita.hora_fin)
-        const { texto, clase } = derivarEtiqueta(cita)
-        const puedeCancelar    = cita.estado === 'activa' && !esPasada(cita)
-        const modalAbierto     = cancelando === cita.id
+        const { texto, clase }  = derivarEtiqueta(cita)
+        const puedeCancelar     = cita.estado === 'activa' && !esPasada(cita)
+        const puedeReprogramar  = cita.estado === 'activa' && tieneAntelacion(cita)
+        const modalAbierto      = cancelando === cita.id
+        const reprogAbierto     = reprogramando?.id === cita.id
 
         return (
           <article key={cita.id} className={styles.citaCard}>
@@ -134,16 +222,31 @@ export default function TabMisCitas({ serviciosMap, onReservar }) {
               <span>{formatDuracion(duracion)}</span>
             </div>
 
-            {puedeCancelar && !modalAbierto && (
-              <button
-                type="button"
-                className={styles.btnCancelar}
-                onClick={() => abrirModal(cita.id)}
-              >
-                Cancelar cita
-              </button>
+            {/* Botones de acción (solo si no hay modal abierto) */}
+            {!modalAbierto && !reprogAbierto && (puedeCancelar || puedeReprogramar) && (
+              <div className={styles.acciones}>
+                {puedeReprogramar && (
+                  <button
+                    type="button"
+                    className={styles.btnReprogramar}
+                    onClick={() => abrirReprogramar(cita)}
+                  >
+                    Cambiar fecha
+                  </button>
+                )}
+                {puedeCancelar && (
+                  <button
+                    type="button"
+                    className={styles.btnCancelar}
+                    onClick={() => abrirModal(cita.id)}
+                  >
+                    Cancelar cita
+                  </button>
+                )}
+              </div>
             )}
 
+            {/* Modal cancelar */}
             {modalAbierto && (
               <div
                 className={styles.modal}
@@ -173,6 +276,74 @@ export default function TabMisCitas({ serviciosMap, onReservar }) {
                     onClick={cerrarModal}
                   >
                     Volver
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Modal reprogramar */}
+            {reprogAbierto && (
+              <div
+                className={styles.modalReprog}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Reprogramar cita"
+              >
+                <p className={styles.servicioFijo}>
+                  {nombre} · {formatDuracionMin(servicio ? servicio.duracion_minutos : duracion)}
+                </p>
+
+                <Calendario
+                  diasAbiertos={diasAbiertos}
+                  fechasCerradas={fechasCerradas}
+                  fechaSeleccionada={fechaReprog}
+                  onSeleccionar={setFechaReprog}
+                  permitirPasados={false}
+                />
+
+                {fechaReprog && (
+                  <div className={styles.horasWrap}>
+                    {cargandoHoras ? (
+                      <div className={styles.centrado}><Spinner size={18} /></div>
+                    ) : horasDisp.length === 0 ? (
+                      <p className={styles.sinHoras}>Sin horas disponibles para este día.</p>
+                    ) : (
+                      <div className={styles.horasGrid}>
+                        {horasDisp.map(h => (
+                          <button
+                            key={h}
+                            type="button"
+                            className={`${styles.horaBtn} ${horaReprog === h ? styles.horaBtnSel : ''}`}
+                            onClick={() => setHoraReprog(h)}
+                          >
+                            {h.slice(0, 5)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {errorReprog && (
+                  <p className={styles.errorMsg} role="alert">{errorReprog}</p>
+                )}
+
+                <div className={styles.modalAcciones}>
+                  <button
+                    type="button"
+                    className={styles.btnConfirmarReprog}
+                    disabled={!fechaReprog || !horaReprog || cargandoReprog}
+                    onClick={confirmarReprogramar}
+                  >
+                    {cargandoReprog ? 'Guardando…' : 'Confirmar cambio'}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.btnVolver}
+                    disabled={cargandoReprog}
+                    onClick={cerrarReprogramar}
+                  >
+                    Cancelar
                   </button>
                 </div>
               </div>

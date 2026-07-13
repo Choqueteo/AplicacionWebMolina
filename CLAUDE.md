@@ -41,6 +41,8 @@ Registro de cliente (`POST /registro`, solo crea rol cliente; el rol nunca se ac
 
 Dependencias de seguridad: `get_usuario_actual`, `solo_admin`.
 
+**Duración de sesión**: el JWT dura **7 días** (constante/env var configurable, p. ej. `ACCESS_TOKEN_EXPIRE_MINUTES = 60*24*7`), para mantener la sesión iniciada y mejorar la UX. Decisión consciente para el piloto (sin pagos ni datos sensibles): NO se usan refresh tokens todavía; el JWT no es revocable, asumido. El logout borra el token del `localStorage` en el cliente. Si en el futuro hay pagos/datos sensibles → migrar a access token corto + refresh token.
+
 ---
 
 ## Modelo de datos (basado en FRANJAS de 30 min)
@@ -97,7 +99,7 @@ El peluquero puede marcar **fechas concretas como cerradas** (vacaciones, festiv
 
 Avisos al peluquero por Telegram (nunca al cliente, en V1). `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` en variables de entorno; si faltan, no se envía nada. Los fallos de Telegram se silencian/registran y **nunca rompen** la operación.
 
-1. **Avisos instantáneos** (dentro de la petición, en `BackgroundTasks`, tras confirmar la transacción): cuando un cliente **reserva** (`POST /citas`) o **cancela** (`PATCH /citas/{id}/cancelar`, solo si cancela el cliente). Mensaje conciso: nombre, teléfono, servicio, fecha y hora, acción.
+1. **Avisos instantáneos** (dentro de la petición, en `BackgroundTasks`, tras confirmar la transacción): cuando un cliente **reserva** (`POST /citas`), **cancela** (`PATCH /citas/{id}/cancelar`, solo si cancela el cliente) o **reprograma** (`PATCH /citas/{id}/reprogramar`). Mensaje conciso: nombre, teléfono, servicio, fecha y hora, acción. En la reprogramación, indicar **de** (fecha/hora antigua) **a** (nueva).
 2. **Recordatorio diario** (proceso programado): **todos los días a las 22:00 (Europe/Madrid)**, un **resumen de las citas del día siguiente**. Se envía **SIEMPRE**, haya o no citas. Detalles:
    - Lo ejecuta un **Render Cron Job** (`scripts/recordatorio_diario.py`), schedule `0 20 * * *` (20:00 UTC = 22:00 Madrid en horario de verano/CEST).
    - "Mañana" = hoy + 1 día, con **hoy en Europe/Madrid** (NO depender de la hora del cron, que corre en UTC).
@@ -115,7 +117,15 @@ Avisos al peluquero por Telegram (nunca al cliente, en V1). `TELEGRAM_BOT_TOKEN`
 
 ---
 
-## Inasistencias (no-show)
+## Reprogramación (cambiar fecha/hora sin cancelar)
+
+`PATCH /citas/{id}/reprogramar` con body `{fecha, hora_inicio}` (**mismo servicio**, no se cambia). Solo **dueño o admin**, y solo citas **activas y futuras**.
+
+- **Antelación mínima: 24 h.** No se puede reprogramar si faltan menos de 24 h para la cita ORIGINAL (con "ahora" en Europe/Madrid) → 422. Motivo: un cambio el mismo día perjudica al barbero; si es tan pegado, que cancele o la asuma.
+- El nuevo hueco debe cumplir **TODAS las reglas de reserva**, igual que un `POST /citas`: dentro de horario, dentro de la ventana de 30 días, no en día cerrado, cliente no bloqueado, y **sin solape**.
+- **Operación transaccional**: borrar las franjas viejas + crear las nuevas + actualizar `fecha`/`hora_inicio`/`hora_fin` de la cita, todo en UNA transacción. Si el hueco nuevo se ocupa a la vez → `IntegrityError` → rollback → **409** (la cita se queda intacta en su fecha original).
+- Errores: 403 (bloqueado / no es su cita), 404, 409 (hueco ocupado), 422 (pasada / <24 h / fuera de ventana / día cerrado / fuera de horario).
+- Avisa al barbero por Telegram ("cita reprogramada: de … a …").
 
 - `PATCH /citas/{id}/no-asistida`, solo admin: marca una cita PASADA y 'activa' como 'no_asistida'. No futuras, no canceladas, no ya marcadas. La marca es manual; la app no puede saber quién asistió.
 - Contador de inasistencias por cliente: visible para el admin (campo `Usuario.inasistencias`).
@@ -160,7 +170,7 @@ NO usar nunca la etiqueta "Confirmada".
 - **Mobile-first y responsiva** (uso principal en móvil).
 - AuthContext (login/logout/usuario+rol). Rutas protegidas por rol (público / cliente / admin). Cliente HTTP centralizado con Bearer automático y manejo central de 401 (cerrar sesión -> login) y 409 ("ese hueco se acaba de ocupar, recarga").
 - **Dos dashboards distintos**: cliente y admin.
-- Pantallas: Login, Registro (nombre, apellidos, teléfono, email, contraseña), Reservar (mostrar solo horas válidas del servicio; **calendario limitado a la ventana [hoy, hoy+30 días] y con los días cerrados deshabilitados**), Mis citas (con cancelar), Panel admin (agenda con estados derivados, marcar inasistencia, gestión de servicios y horario, **días cerrados**, bloquear clientes).
+- Pantallas: Login, Registro (nombre, apellidos, teléfono, email, contraseña), Reservar (mostrar solo horas válidas del servicio; **calendario limitado a la ventana [hoy, hoy+30 días] y con los días cerrados deshabilitados**), Mis citas (con cancelar y **reprogramar** — reutiliza el selector calendario+horas de Reservar, precargado con el servicio de la cita; botón visible solo si faltan ≥24 h), Panel admin (agenda con estados derivados, marcar inasistencia, gestión de servicios y horario, **días cerrados**, bloquear clientes).
 - **Crear servicio (admin)**: desplegable de duración de **30 min a 5 h en pasos de 30 min** (30, 60, 90, …, 300).
 - **Formateo de duración**: mostrar bien duraciones largas con media hora: "30 min", "1 h", "1 h 30 min", "2 h 30 min", "5 h", etc.
 

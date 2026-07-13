@@ -87,10 +87,35 @@
   background: var(--c-input-bg);
 }
 
+/* ── Fila de acciones (reprogramar + cancelar) ───────────────────────────── */
+.acciones {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.25rem;
+  flex-wrap: wrap;
+}
+
+/* ── Botón reprogramar ───────────────────────────────────────────────────── */
+.btnReprogramar {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: var(--text-sm);
+  color: var(--c-gold);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.85;
+  transition: opacity var(--transition-fast) var(--ease-out);
+}
+
+.btnReprogramar:hover {
+  opacity: 1;
+}
+
 /* ── Botón cancelar (inline, discreto) ──────────────────────────────────── */
 .btnCancelar {
-  align-self: flex-start;
-  margin-top: 0.25rem;
   background: none;
   border: none;
   padding: 0;
@@ -180,6 +205,92 @@
   cursor: not-allowed;
 }
 
+/* ── Modal de reprogramación ─────────────────────────────────────────────── */
+.modalReprog {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 0.875rem;
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-input);
+  animation: modalIn var(--transition-fast) var(--ease-out) both;
+}
+
+.servicioFijo {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--c-text-sec);
+}
+
+.horasWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sinHoras {
+  font-size: var(--text-sm);
+  color: var(--c-text-sec);
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.horasGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.horaBtn {
+  padding: 0.45rem 0.75rem;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-btn);
+  font-family: 'Inter', sans-serif;
+  font-size: var(--text-sm);
+  color: var(--c-text);
+  cursor: pointer;
+  transition: border-color var(--transition-fast) var(--ease-out),
+              background   var(--transition-fast) var(--ease-out);
+}
+
+.horaBtn:hover {
+  border-color: var(--c-gold);
+  color: var(--c-gold);
+}
+
+.horaBtnSel {
+  background: var(--c-gold);
+  border-color: var(--c-gold);
+  color: #000;
+  font-weight: 600;
+}
+
+.btnConfirmarReprog {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  background: var(--c-gold);
+  border: none;
+  border-radius: var(--radius-btn);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #000;
+  cursor: pointer;
+  transition: filter var(--transition-fast) var(--ease-out);
+}
+
+.btnConfirmarReprog:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.btnConfirmarReprog:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* ── Mensajes ─────────────────────────────────────────────────────────────── */
 .errorMsg {
   background: var(--c-error-bg);
@@ -221,6 +332,9 @@
 @media (prefers-reduced-motion: reduce) {
   .citaCard,
   .btnCancelar,
+  .btnReprogramar,
   .btnConfirmarCancel,
-  .btnVolver { transition: none; }
+  .btnConfirmarReprog,
+  .btnVolver,
+  .horaBtn { transition: none; }
 }

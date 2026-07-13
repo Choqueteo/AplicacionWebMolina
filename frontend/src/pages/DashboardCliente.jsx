@@ -112,6 +112,8 @@ export default function DashboardCliente() {
             ) : (
               <TabMisCitas
                 serviciosMap={serviciosMap}
+                diasAbiertos={diasAbiertos}
+                fechasCerradas={fechasCerradas}
                 onReservar={() => setPestana('reservar')}
               />
             )}

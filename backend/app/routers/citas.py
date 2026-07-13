@@ -11,12 +11,72 @@ from app.dependencies import get_usuario_actual, solo_admin
 from app.models import Cita, EstadoCita, ExcepcionFecha, FranjaOcupada, HorarioPeluquero, Rol, Servicio, TipoExcepcion, Usuario
 from app.notificaciones.telegram import enviar_aviso_peluquero
 from app.rate_limit import get_real_ip, limiter
-from app.schemas import CitaCreate, CitaRead
+from app.schemas import CitaCreate, CitaRead, CitaReprogramar
 from app.security import decode_access_token
 
 router = APIRouter(tags=["citas"])
 
 _MADRID = ZoneInfo("Europe/Madrid")
+
+
+# ---------------------------------------------------------------------------
+# Helpers privados — reutilizados en POST /citas y PATCH /reprogramar
+# ---------------------------------------------------------------------------
+
+def _generar_franjas(fecha: date, hora_inicio, duracion_minutos: int) -> list:
+    """Lista de (fecha, hora) para cada franja de 30 min del servicio."""
+    franjas, cursor = [], datetime.combine(fecha, hora_inicio)
+    for _ in range(duracion_minutos // FRANJA_MINUTOS):
+        franjas.append((fecha, cursor.time()))
+        cursor += timedelta(minutes=FRANJA_MINUTOS)
+    return franjas
+
+
+def _validar_slot(db, servicio, fecha: date, hora_inicio, today_madrid: date, now_madrid: datetime) -> None:
+    """
+    Valida ventana de reserva, día cerrado, horario y encaje de la duración.
+    NO consulta FranjaOcupada — el solape lo detecta el INSERT + IntegrityError.
+    Lanza HTTPException(422) si alguna condición falla.
+    """
+    if fecha < today_madrid:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No se pueden reservar citas en fechas pasadas",
+        )
+    if fecha > today_madrid + timedelta(days=DIAS_MAX_RESERVA):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Solo se pueden reservar citas con un máximo de {DIAS_MAX_RESERVA} días de antelación",
+        )
+    if db.query(ExcepcionFecha).filter_by(fecha=fecha, tipo=TipoExcepcion.cerrado).first():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Ese día está cerrado y no admite reservas",
+        )
+    tramos = (
+        db.query(HorarioPeluquero)
+        .filter_by(dia_semana=fecha.weekday())
+        .order_by(HorarioPeluquero.hora_apertura)
+        .all()
+    )
+    if not tramos:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No hay horario definido para ese día de la semana",
+        )
+    hora_fin = (
+        datetime.combine(date.min, hora_inicio) + timedelta(minutes=servicio.duracion_minutos)
+    ).time()
+    if not any(hora_inicio >= t.hora_apertura and hora_fin <= t.hora_cierre for t in tramos):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La cita queda fuera del horario de apertura",
+        )
+    if fecha == today_madrid and hora_inicio <= now_madrid.time():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La hora indicada ya ha pasado",
+        )
 
 
 def _key_usuario(request: Request) -> str:
@@ -94,60 +154,13 @@ def crear_cita(
             detail="Tu cuenta está bloqueada. Contacta con el peluquero.",
         )
 
-    # 2. Fecha dentro de la ventana de reserva [hoy, hoy+DIAS_MAX_RESERVA]
-    if datos.fecha < today_madrid:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No se pueden reservar citas en fechas pasadas",
-        )
-    if datos.fecha > today_madrid + timedelta(days=DIAS_MAX_RESERVA):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Solo se pueden reservar citas con un máximo de {DIAS_MAX_RESERVA} días de antelación",
-        )
+    # 2–5. Validar ventana, día cerrado, horario y encaje
+    _validar_slot(db, servicio, datos.fecha, datos.hora_inicio, today_madrid, now_madrid)
 
-    # 2b. Fecha cerrada → 422
-    if db.query(ExcepcionFecha).filter_by(fecha=datos.fecha, tipo=TipoExcepcion.cerrado).first():
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Ese día está cerrado y no admite reservas",
-        )
-
-    # 3. Horario del día (todos los tramos)
-    tramos = (
-        db.query(HorarioPeluquero)
-        .filter_by(dia_semana=datos.fecha.weekday())
-        .order_by(HorarioPeluquero.hora_apertura)
-        .all()
-    )
-    if not tramos:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No hay horario definido para ese día de la semana",
-        )
-
-    # 4. Servicio cabe dentro de algún tramo del día
     hora_fin = (
         datetime.combine(date.min, datos.hora_inicio)
         + timedelta(minutes=servicio.duracion_minutos)
     ).time()
-
-    cabe = any(
-        datos.hora_inicio >= tramo.hora_apertura and hora_fin <= tramo.hora_cierre
-        for tramo in tramos
-    )
-    if not cabe:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="La cita queda fuera del horario de apertura",
-        )
-
-    # 5. Hora no pasada para citas de hoy
-    if datos.fecha == today_madrid and datos.hora_inicio <= now_madrid.time():
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="La hora indicada ya ha pasado",
-        )
 
     # 6. Transacción atómica: Cita + FranjaOcupada
     try:
@@ -162,12 +175,8 @@ def crear_cita(
         db.add(cita)
         db.flush()  # obtiene cita.id sin confirmar
 
-        N = servicio.duracion_minutos // FRANJA_MINUTOS
-        for i in range(N):
-            franja_hora = (
-                datetime.combine(date.min, datos.hora_inicio) + timedelta(minutes=FRANJA_MINUTOS * i)
-            ).time()
-            db.add(FranjaOcupada(cita_id=cita.id, fecha=datos.fecha, hora=franja_hora))
+        for fecha_f, hora_f in _generar_franjas(datos.fecha, datos.hora_inicio, servicio.duracion_minutos):
+            db.add(FranjaOcupada(cita_id=cita.id, fecha=fecha_f, hora=hora_f))
 
         db.commit()
         db.refresh(cita)
@@ -267,6 +276,109 @@ def cancelar_cita(
         )
         background_tasks.add_task(enviar_aviso_peluquero, mensaje)
 
+    return cita
+
+
+@router.patch("/citas/{cita_id}/reprogramar", response_model=CitaRead)
+def reprogramar_cita(
+    cita_id: int,
+    background_tasks: BackgroundTasks,
+    datos: CitaReprogramar,
+    usuario: Usuario = Depends(get_usuario_actual),
+    db: Session = Depends(get_db),
+):
+    """
+    Cambia fecha/hora de una cita activa y futura (mismo servicio).
+    Transacción atómica: borra franjas viejas + crea nuevas + actualiza la cita.
+    Si el nuevo hueco está ocupado → IntegrityError → rollback → 409 (cita intacta).
+    """
+    # 1. Existe
+    cita = db.get(Cita, cita_id)
+    if cita is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cita no encontrada")
+
+    # 2. Solo dueño o admin — 403 (no 404) según spec de reprogramar
+    if usuario.rol != Rol.admin and cita.cliente_id != usuario.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permiso para reprogramar esta cita")
+
+    # 3. Solo citas activas
+    if cita.estado != EstadoCita.activa:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Solo se pueden reprogramar citas activas",
+        )
+
+    now_madrid = datetime.now(_MADRID)
+    today_madrid = now_madrid.date()
+
+    # 4. Cita no pasada
+    cita_dt = datetime.combine(cita.fecha, cita.hora_inicio).replace(tzinfo=_MADRID)
+    if cita_dt <= now_madrid:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No se pueden reprogramar citas pasadas",
+        )
+
+    # 5. Antelación mínima 24 h sobre la cita ORIGINAL
+    if (cita_dt - now_madrid).total_seconds() < 24 * 3600:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Solo se puede reprogramar con al menos 24 h de antelación",
+        )
+
+    # 6. Cliente no bloqueado
+    if cita.cliente.bloqueado:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="La cuenta está bloqueada. Contacta con el peluquero.",
+        )
+
+    # 7. Validar el nuevo hueco (ventana, día cerrado, horario, encaje)
+    servicio = db.get(Servicio, cita.servicio_id)
+    _validar_slot(db, servicio, datos.fecha, datos.hora_inicio, today_madrid, now_madrid)
+
+    nueva_hora_fin = (
+        datetime.combine(datos.fecha, datos.hora_inicio)
+        + timedelta(minutes=servicio.duracion_minutos)
+    ).time()
+
+    # Guardar datos actuales para el mensaje Telegram
+    fecha_ant = cita.fecha
+    hora_ant  = cita.hora_inicio
+
+    # 8. Transacción atómica
+    try:
+        db.query(FranjaOcupada).filter(
+            FranjaOcupada.cita_id == cita.id
+        ).delete(synchronize_session="fetch")
+
+        cita.fecha       = datos.fecha
+        cita.hora_inicio = datos.hora_inicio
+        cita.hora_fin    = nueva_hora_fin
+
+        for fecha_f, hora_f in _generar_franjas(datos.fecha, datos.hora_inicio, servicio.duracion_minutos):
+            db.add(FranjaOcupada(cita_id=cita.id, fecha=fecha_f, hora=hora_f))
+
+        db.flush()
+        db.commit()
+        db.refresh(cita)
+
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ese hueco se acaba de ocupar; elige otro.",
+        )
+
+    cliente = db.get(Usuario, cita.cliente_id)
+    mensaje = (
+        f"Cita reprogramada por el cliente\n"
+        f"Cliente: {cliente.nombre_completo} | {cliente.telefono}\n"
+        f"Servicio: {servicio.nombre}\n"
+        f"De: {fecha_ant.strftime('%d/%m/%Y')} a las {hora_ant.strftime('%H:%M')}\n"
+        f"A: {datos.fecha.strftime('%d/%m/%Y')} a las {datos.hora_inicio.strftime('%H:%M')}"
+    )
+    background_tasks.add_task(enviar_aviso_peluquero, mensaje)
     return cita
 
 

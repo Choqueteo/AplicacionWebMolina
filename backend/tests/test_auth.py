@@ -179,3 +179,24 @@ def test_telefono_primer_digito_invalido_422(client):
     r = client.post("/registro", json={**_PAYLOAD, "email": "t6@x.com",
                                        "telefono": "512345678"})
     assert r.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Expiración del token
+# ---------------------------------------------------------------------------
+
+def test_token_expiracion_configurable():
+    """El token recién emitido expira dentro de la ventana configurada (±60 s)."""
+    from datetime import datetime, timezone
+    import jwt
+    from app.config import settings
+    from app.security import create_access_token
+
+    token = create_access_token(999, "cliente")
+    payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+
+    exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+    segundos_reales    = (exp - datetime.now(timezone.utc)).total_seconds()
+    segundos_esperados = settings.access_token_expire_minutes * 60
+
+    assert abs(segundos_reales - segundos_esperados) < 60

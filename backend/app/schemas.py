@@ -269,6 +269,24 @@ class DisponibilidadRead(BaseModel):
 # Excepciones de fecha
 # ---------------------------------------------------------------------------
 
+class CitaReprogramar(BaseModel):
+    fecha: date
+    hora_inicio: time
+
+    model_config = {"extra": "forbid"}
+
+    @field_validator("hora_inicio")
+    @classmethod
+    def hora_en_franja(cls, v: time) -> time:
+        _minutos_validos = {i * FRANJA_MINUTOS for i in range(60 // FRANJA_MINUTOS)}
+        if v.minute not in _minutos_validos or v.second != 0 or v.microsecond != 0:
+            raise ValueError(
+                f"hora_inicio debe estar en múltiplo de {FRANJA_MINUTOS} min "
+                f"({', '.join(f':{m:02d}' for m in sorted(_minutos_validos))}), sin segundos"
+            )
+        return v
+
+
 class ExcepcionFechaCreate(BaseModel):
     fecha: date
     model_config = {"extra": "forbid"}
