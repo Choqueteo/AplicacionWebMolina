@@ -1,5 +1,5 @@
 import re
-from datetime import date, time
+from datetime import date, datetime, time
 from decimal import Decimal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
@@ -305,3 +305,32 @@ class ExcepcionFechaRead(BaseModel):
     fecha : date
     tipo  : str
     model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
+# Exportación de datos (RGPD portabilidad)
+# ---------------------------------------------------------------------------
+
+class CitaExport(BaseModel):
+    id: int
+    fecha: date
+    hora_inicio: time
+    hora_fin: time
+    estado: str
+    servicio_nombre: str
+    servicio_duracion_minutos: int
+
+
+class PerfilExport(BaseModel):
+    id: int
+    email: str
+    nombre_completo: str
+    telefono: str
+    rol: str
+    consentimiento_version: str | None
+    consentimiento_fecha: datetime | None
+
+
+class UsuarioDatosExport(BaseModel):
+    perfil: PerfilExport
+    citas: list[CitaExport]
