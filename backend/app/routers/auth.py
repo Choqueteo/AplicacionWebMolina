@@ -1,3 +1,6 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -18,9 +21,8 @@ from app.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(tags=["autenticación"])
 
-# Hash bcrypt de un texto fijo, calculado una sola vez al importar el módulo.
-# Se usa en /login para ejecutar verify_password incluso cuando el email no existe,
-# evitando que diferencias de tiempo revelen si una dirección está registrada.
+CONSENTIMIENTO_VERSION = "v1"
+
 _DUMMY_HASH = hash_password("__dummy_password_never_used__")
 
 
@@ -33,6 +35,8 @@ def registro(request: Request, datos: UsuarioCreate, db: Session = Depends(get_d
         telefono=datos.telefono,
         nombre_completo=datos.nombre_completo,
         rol=Rol.cliente,  # FORZADO: nunca se lee del cuerpo de la petición
+        consentimiento_version=CONSENTIMIENTO_VERSION,
+        consentimiento_fecha=datetime.now(ZoneInfo("Europe/Madrid")),
     )
     db.add(usuario)
     try:

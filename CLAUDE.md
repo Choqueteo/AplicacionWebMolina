@@ -165,9 +165,24 @@ NO usar nunca la etiqueta "Confirmada".
 
 ---
 
-## Frontend (React + Vite)
+## Cumplimiento legal (RGPD, LOPDGDD, LSSI-CE — España)
+
+**Páginas legales** (rutas públicas, accesibles sin login, enlazadas desde un footer presente en TODAS las páginas). **Estructura con placeholders `[…]`, no texto legal definitivo** (lo aporta el titular / un profesional):
+- `/aviso-legal`: identifica al titular — `[nombre/razón social]`, `[NIF]`, `[dirección física]`, `[email de contacto]`.
+- `/politica-privacidad`: responsable (el negocio); encargados (desarrollador/hosting **Render – Frankfurt/UE**, **Cloudflare**); datos recogidos (nombre, email, teléfono, historial de citas); finalidad (gestión de reservas y avisos); base legal (ejecución de contrato y/o consentimiento); destinatarios/terceros (**Telegram — transferencia internacional fuera de la UE**; hosting UE); plazo de conservación; derechos (acceso, rectificación, supresión, oposición, portabilidad, limitación) y cómo ejercerlos; reclamación ante la **AEPD**; transferencias internacionales (Telegram).
+- `/politica-cookies`: documenta el almacenamiento **técnico** (JWT en `localStorage`, exento de consentimiento). **RM no usa cookies no esenciales ni analítica** → **NO hay banner de cookies** (montarlo sin nada que consentir sería incorrecto). Si algún día se añade analítica, entonces sí: banner con **aceptar/rechazar al mismo nivel**, sin cargar nada antes del consentimiento, granular y sin muros.
+
+**Consentimiento en el registro** (LSSI/RGPD): checkbox **NO premarcado** con enlace a `/politica-privacidad` y texto de consentimiento explícito; el registro no se envía si no está marcado. **Prueba en BD**: `Usuario` guarda `consentimiento_version` (str) y `consentimiento_fecha` (timestamp) del texto aceptado. (La reserva de cita **no** lleva checkbox: es ejecución de contrato.)
+
+**Derechos RGPD (endpoints de autoservicio, usuario autenticado)**:
+- **Exportar**: `GET /usuarios/me/datos` → todos sus datos (perfil + historial de citas) en JSON (portabilidad/acceso).
+- **Suprimir**: `DELETE /usuarios/me` → **ANONIMIZA** (no borra la fila): sustituye `nombre_completo`/`email`/`telefono`/`password_hash` por valores anonimizados irreversibles (p. ej. `email = anon_{id}@…`), marca la cuenta inutilizable y cancela sus citas futuras. Conserva el historial anonimizado (sin datos personales) → evita romper FKs y mantiene estadística. NO aplicable a cuentas admin.
+
+**Seguridad de datos (ya cumplido, verificar)**: contraseñas con bcrypt; HTTPS+HSTS; minimización; backups de la Postgres gestionada; acceso a BD restringido (`ipAllowList: []`).
 
 - **Mobile-first y responsiva** (uso principal en móvil).
+- **Footer** presente en TODAS las páginas (aparece al hacer scroll), con enlaces a `/aviso-legal`, `/politica-privacidad` y `/politica-cookies` (rutas públicas). Estética integrada con la web (negro/oro).
+- **Registro**: incluye un checkbox de consentimiento NO premarcado, con enlace a `/politica-privacidad`; el botón de registro no se activa/envía sin marcarlo.
 - AuthContext (login/logout/usuario+rol). Rutas protegidas por rol (público / cliente / admin). Cliente HTTP centralizado con Bearer automático y manejo central de 401 (cerrar sesión -> login) y 409 ("ese hueco se acaba de ocupar, recarga").
 - **Dos dashboards distintos**: cliente y admin.
 - Pantallas: Login, Registro (nombre, apellidos, teléfono, email, contraseña), Reservar (mostrar solo horas válidas del servicio; **calendario limitado a la ventana [hoy, hoy+30 días] y con los días cerrados deshabilitados**), Mis citas (con cancelar y **reprogramar** — reutiliza el selector calendario+horas de Reservar, precargado con el servicio de la cita; botón visible solo si faltan ≥24 h), Panel admin (agenda con estados derivados, marcar inasistencia, gestión de servicios y horario, **días cerrados**, bloquear clientes).

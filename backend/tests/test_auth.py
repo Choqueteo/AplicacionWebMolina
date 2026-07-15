@@ -3,6 +3,7 @@ _PAYLOAD = {
     "password": "password123",
     "telefono": "612345678",
     "nombre_completo": "Test User",
+    "acepta_consentimiento": True,
 }
 
 
@@ -200,3 +201,24 @@ def test_token_expiracion_configurable():
     segundos_esperados = settings.access_token_expire_minutes * 60
 
     assert abs(segundos_reales - segundos_esperados) < 60
+
+
+# ---------------------------------------------------------------------------
+# Consentimiento RGPD
+# ---------------------------------------------------------------------------
+
+def test_registro_sin_consentimiento_422(client):
+    """acepta_consentimiento=False → 422."""
+    r = client.post("/registro", json={**_PAYLOAD, "email": "noconsent@x.com",
+                                       "acepta_consentimiento": False})
+    assert r.status_code == 422
+
+
+def test_registro_consentimiento_guarda_version_y_fecha(client, db_session):
+    """Registro exitoso guarda versión y fecha del consentimiento en BD."""
+    from app.models import Usuario as UsuarioModel
+    r = client.post("/registro", json={**_PAYLOAD, "email": "consent@x.com"})
+    assert r.status_code == 201
+    u = db_session.get(UsuarioModel, r.json()["id"])
+    assert u.consentimiento_version == "v1"
+    assert u.consentimiento_fecha is not None

@@ -42,3 +42,32 @@
 .enlace a:hover {
   color: var(--c-gold-bright);
 }
+
+.consentimiento {
+  margin-top: 0.25rem;
+}
+
+.checkLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: var(--text-sm);
+  color: var(--c-text-sec);
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.checkbox {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--c-gold);
+  cursor: pointer;
+}
+
+.checkLabel a {
+  color: var(--c-gold);
+  text-underline-offset: 2px;
+  text-decoration: underline;
+}

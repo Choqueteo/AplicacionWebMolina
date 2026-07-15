@@ -1,5 +1,5 @@
 import enum
-from datetime import date, time
+from datetime import date, datetime, time
 from decimal import Decimal
 
 from app.constants import DURACION_MAX_MINUTOS, FRANJA_MINUTOS
@@ -7,6 +7,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Date,
+    DateTime,
     Enum as SAEnum,
     ForeignKey,
     Integer,
@@ -56,6 +57,9 @@ class Usuario(Base):
                       )
     bloqueado       : Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     inasistencias   : Mapped[int]  = mapped_column(Integer, default=0, nullable=False)
+
+    consentimiento_version : Mapped[str | None]      = mapped_column(String(20),              nullable=True)
+    consentimiento_fecha   : Mapped[datetime | None]  = mapped_column(DateTime(timezone=True), nullable=True)
 
     citas: Mapped[list["Cita"]] = relationship(back_populates="cliente")
 

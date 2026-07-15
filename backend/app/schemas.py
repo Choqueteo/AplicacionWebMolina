@@ -50,6 +50,7 @@ class UsuarioCreate(BaseModel):
     password: str = Field(min_length=8, max_length=100)
     telefono: str  # validado y normalizado por _validar_telefono
     nombre_completo: str = Field(min_length=1, max_length=100)
+    acepta_consentimiento: bool = Field(...)
     # Sin campo `rol`: el endpoint lo fuerza siempre a 'cliente'
 
     model_config = {"extra": "forbid"}  # 422 ante cualquier campo extra (anti mass-assignment)
@@ -63,6 +64,13 @@ class UsuarioCreate(BaseModel):
     @classmethod
     def validar_telefono(cls, v: str) -> str:
         return _validar_telefono(v)
+
+    @field_validator("acepta_consentimiento")
+    @classmethod
+    def debe_aceptar(cls, v: bool) -> bool:
+        if not v:
+            raise ValueError("Debes aceptar la política de privacidad para registrarte")
+        return v
 
 
 class UsuarioRead(BaseModel):

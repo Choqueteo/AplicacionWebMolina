@@ -9,9 +9,10 @@ import styles from './Registro.module.css'
 export default function Registro() {
   const navigate = useNavigate()
 
-  const [cargando, setCargando]         = useState(false)
-  const [erroresCampo, setErroresCampo] = useState({})
-  const [errorGeneral, setErrorGeneral] = useState('')
+  const [cargando, setCargando]                       = useState(false)
+  const [erroresCampo, setErroresCampo]               = useState({})
+  const [errorGeneral, setErrorGeneral]               = useState('')
+  const [aceptaConsentimiento, setAceptaConsentimiento] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -24,10 +25,11 @@ export default function Registro() {
 
     try {
       await client.post('/registro', {
-        nombre_completo: nombreCompleto,
-        telefono:        f.telefono.value,
-        email:           f.email.value,
-        password:        f.password.value,
+        nombre_completo:       nombreCompleto,
+        telefono:              f.telefono.value,
+        email:                 f.email.value,
+        password:              f.password.value,
+        acepta_consentimiento: true,
       })
       navigate('/login', {
         state: { mensaje: 'Cuenta creada, ya puedes iniciar sesión' },
@@ -51,6 +53,9 @@ export default function Registro() {
               tieneError = true
             } else if (campo === 'email') {
               campos.email = item.msg
+              tieneError = true
+            } else if (campo === 'acepta_consentimiento') {
+              setErrorGeneral(item.msg || 'Debes aceptar la política de privacidad')
               tieneError = true
             }
           }
@@ -128,11 +133,29 @@ export default function Registro() {
           required
         />
 
+        <div className={styles.consentimiento}>
+          <label className={styles.checkLabel}>
+            <input
+              type="checkbox"
+              className={styles.checkbox}
+              checked={aceptaConsentimiento}
+              onChange={e => setAceptaConsentimiento(e.target.checked)}
+            />
+            <span>
+              He leído y acepto la{' '}
+              <Link to="/politica-privacidad" target="_blank" rel="noopener">
+                política de privacidad
+              </Link>
+              {' '}para el tratamiento de mis datos con el fin de gestionar mis citas.
+            </span>
+          </label>
+        </div>
+
         {errorGeneral && (
           <p className={styles.errorMsg} role="alert">{errorGeneral}</p>
         )}
 
-        <Button type="submit" loading={cargando}>
+        <Button type="submit" loading={cargando} disabled={!aceptaConsentimiento || cargando}>
           Registrarse
         </Button>
       </form>
