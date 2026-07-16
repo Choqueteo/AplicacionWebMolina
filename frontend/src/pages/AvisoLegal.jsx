@@ -12,10 +12,8 @@ export default function AvisoLegal() {
       <h2>Datos identificativos del titular</h2>
       <ul>
         <li><strong>Denominación social / nombre comercial:</strong> RM — Peluquería · Barbería</li>
-        <li><strong>Razón social / titular:</strong> [nombre o razón social]</li>
-        <li><strong>NIF/CIF:</strong> [NIF]</li>
-        <li><strong>Domicilio:</strong> [dirección física completa]</li>
-        <li><strong>Email de contacto:</strong> [email de contacto]</li>
+        <li><strong>Razón social / titular:</strong> RMolinaStyle</li>
+        <li><strong>Email de contacto:</strong>Aún no disponible (consulte rmolinastyle en Instagram)</li>
       </ul>
 
       <h2>Objeto y actividad</h2>
