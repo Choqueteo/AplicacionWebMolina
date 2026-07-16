@@ -10,11 +10,9 @@ export default function PoliticaPrivacidad() {
 
       <h2>Responsable del tratamiento</h2>
       <ul>
-        <li><strong>Nombre comercial:</strong> RM — Peluquería · Barbería</li>
-        <li><strong>Razón social / titular:</strong> [razón social]</li>
-        <li><strong>NIF:</strong> [NIF]</li>
-        <li><strong>Domicilio:</strong> [dirección física]</li>
-        <li><strong>Email de contacto:</strong> [email de contacto]</li>
+        <li><strong>Denominación social / nombre comercial:</strong> RM — Peluquería · Barbería</li>
+        <li><strong>Razón social / titular:</strong> RMolinaStyle</li>
+        <li><strong>Email de contacto:</strong>Aún no disponible (consulte rmolinastyle en Instagram)</li>
       </ul>
 
       <h2>Datos que tratamos</h2>
