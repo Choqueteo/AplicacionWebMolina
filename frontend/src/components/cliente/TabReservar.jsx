@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import client from '../../api/client'
 import Button from '../ui/Button'
 import Spinner from '../ui/Spinner'
+import { capitalizar } from '../../utils/texto'
 import Calendario from './Calendario'
 import styles from './TabReservar.module.css'
 
@@ -217,7 +218,7 @@ export default function TabReservar({ servicios, diasAbiertos, fechasCerradas = 
             </div>
             <div className={styles.resumenFila}>
               <span className={styles.resumenLabel}>Día</span>
-              <span style={{ textTransform: 'capitalize' }}>{formatFechaLarga(fecha)}</span>
+              <span>{capitalizar(formatFechaLarga(fecha))}</span>
             </div>
             <div className={styles.resumenFila}>
               <span className={styles.resumenLabel}>Hora</span>

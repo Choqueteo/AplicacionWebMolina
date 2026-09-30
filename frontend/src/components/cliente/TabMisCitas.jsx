@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import client from '../../api/client'
 import Spinner from '../ui/Spinner'
+import { capitalizar } from '../../utils/texto'
 import Calendario from './Calendario'
 import styles from './TabMisCitas.module.css'
 
@@ -215,9 +216,9 @@ export default function TabMisCitas({ serviciosMap, diasAbiertos = new Set(), fe
               <span className={`${styles.etiqueta} ${styles[clase]}`}>{texto}</span>
             </div>
             <div className={styles.citaMeta}>
-              <span style={{ textTransform: 'capitalize' }}>{formatFecha(cita.fecha)}</span>
+              <span>{capitalizar(formatFecha(cita.fecha))}</span>
               <span className={styles.separador}>·</span>
-              <span>{cita.hora_inicio}</span>
+              <span>{cita.hora_inicio.slice(0, 5)}</span>
               <span className={styles.separador}>·</span>
               <span>{formatDuracion(duracion)}</span>
             </div>

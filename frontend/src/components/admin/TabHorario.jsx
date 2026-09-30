@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import client from '../../api/client'
+import { capitalizar } from '../../utils/texto'
 import Spinner from '../ui/Spinner'
 import styles from './TabHorario.module.css'
 
@@ -185,8 +186,8 @@ export default function TabHorario() {
           <ul className={styles.listaCerrados}>
             {cerrados.map(exc => (
               <li key={exc.id} className={styles.itemCerrado}>
-                <span className={styles.fechaTexto} style={{ textTransform: 'capitalize' }}>
-                  {_formatFechaCierre(exc.fecha)}
+                <span className={styles.fechaTexto}>
+                  {capitalizar(_formatFechaCierre(exc.fecha))}
                 </span>
                 <button
                   type="button"

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { capitalizar } from '../../utils/texto'
 import styles from './Calendario.module.css'
 
 const DIAS_SEMANA = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
@@ -110,8 +111,8 @@ export default function Calendario({ diasAbiertos, fechasCerradas = new Set(), f
         >
           ‹
         </button>
-        <span className={styles.tituloMes} style={{ textTransform: 'capitalize' }}>
-          {tituloMes}
+        <span className={styles.tituloMes}>
+          {capitalizar(tituloMes)}
         </span>
         <button
           type="button"

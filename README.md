@@ -6,6 +6,79 @@ Aplicación web de reservas para una peluquería/barbería real con un único pe
 
 ---
 
+## 📸 Capturas
+
+<p align="center">
+  <img src="docs/capturas/login.png" alt="Pantalla de inicio de sesión en modo oscuro, con el logo de RM, los campos de email y contraseña y el botón dorado Entrar" width="90%">
+  <br>
+  <sub><b>Público</b> · inicio de sesión (modo oscuro)</sub>
+</p>
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/capturas/registro.png" alt="Formulario de registro con los campos nombre, apellidos y teléfono y un texto de ayuda bajo cada uno">
+      <br>
+      <sub><b>Público</b> · registro de cliente con ayudas en cada campo</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/capturas/registro-consentimiento.png" alt="Parte final del formulario de registro con la casilla de aceptación de la política de privacidad sin marcar y el botón Registrarse desactivado">
+      <br>
+      <sub><b>Público</b> · consentimiento RGPD no premarcado</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/capturas/cliente-reservar.png" alt="Calendario de reserva con los días no disponibles atenuados, un día seleccionado en dorado y la lista de horas libres debajo">
+      <br>
+      <sub><b>Cliente</b> · reservar: calendario y horas disponibles</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/capturas/cliente-confirmar-reserva.png" alt="Resumen de la reserva con servicio, día, hora y duración, y el botón Confirmar reserva">
+      <br>
+      <sub><b>Cliente</b> · confirmación de la reserva</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/capturas/cliente-mis-citas.png" alt="Lista de citas del cliente con las etiquetas de estado Cancelada y Realizada">
+      <br>
+      <sub><b>Cliente</b> · mis citas con su estado</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/capturas/admin-agenda.png" alt="Agenda del día en el panel de administración con una cita a las 12:00 marcada como Reservada y el enlace Cancelar cita">
+      <br>
+      <sub><b>Admin</b> · agenda del día</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/capturas/admin-servicios.png" alt="Lista de servicios con duración, precio, etiqueta Activo y los enlaces Editar y Desactivar">
+      <br>
+      <sub><b>Admin</b> · gestión de servicios</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/capturas/admin-nuevo-servicio.png" alt="Formulario de nuevo servicio con nombre, desplegable de duración y precio en euros">
+      <br>
+      <sub><b>Admin</b> · nuevo servicio (de 30 min a 5 h)</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/capturas/admin-horario.png" alt="Pestaña de horario con la sección Días cerrados y los tramos de mañana y tarde de lunes, martes y miércoles">
+      <br>
+      <sub><b>Admin</b> · horario semanal por tramos y días cerrados</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/capturas/admin-clientes.png" alt="Lista de clientes con sus datos ocultos, la etiqueta Activo y el enlace Bloquear">
+      <br>
+      <sub><b>Admin</b> · clientes: bloquear y desbloquear</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
 ## Stack
 
 | Capa | Tecnología |
